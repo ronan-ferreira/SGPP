@@ -61,7 +61,7 @@ import re
 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "gerador_atividades_2026")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "sgpp_secret_key_2026")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
