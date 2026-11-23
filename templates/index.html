@@ -115,18 +115,18 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">
-                                <i class="bi bi-mortarboard text-primary"></i> Curso <span class="text-danger">*</span>
+                                <i class="bi bi-mortarboard text-primary"></i> Curso / Série / Ano Escolar <span class="text-danger">*</span>
                             </label>
                             <input type="text" name="curso" id="inputCurso" class="form-control form-control-lg"
-                                   placeholder="Ex: Técnico em Desenvolvimento de Sistemas"
+                                   placeholder="Ex: 8º Ano Fundamental, 2ª Série EM, Técnico em Informática..."
                                    value="{{ dados_form.curso if dados_form else request.args.get('curso', '') }}" required autofocus>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">
-                                <i class="bi bi-book text-primary"></i> Unidade Curricular / Disciplina <span class="text-danger">*</span>
+                                <i class="bi bi-book text-primary"></i> Componente Curricular / Disciplina <span class="text-danger">*</span>
                             </label>
                             <input type="text" name="disciplina" id="inputDisciplina" class="form-control form-control-lg"
-                                   placeholder="Ex: Banco de Dados Relacional"
+                                   placeholder="Ex: Matemática, História, Banco de Dados, Língua Portuguesa..."
                                    value="{{ dados_form.disciplina if dados_form else request.args.get('disciplina', '') }}" required>
                         </div>
                     </div>

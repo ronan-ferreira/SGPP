@@ -110,8 +110,23 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
    - 'utils/pdf_atividade_generator.py': ReportLab atualizado com cabecalho dinamico e rodape
      personalizado da instituicao escolar do docente.
 
+--- [2026-11-23] Fase 2: Entrada Flexivel de Conteudo (Sem Exigir PDF de Plano de Curso) ---
+1. Flexibilizacao de Formulario em 'planejamento_docente.html':
+   - Campos adaptados de "Curso / UC" para "Curso / Serie / Ano Escolar" e "Componente Curricular / Disciplina".
+   - Segmentos expandidos: Ensino Fundamental (BNCC), Ensino Medio (BNCC), Tecnico, Infantil e Superior.
+   - Criado seletor interativo com duas opcoes de entrada:
+     * Opcao 1 (Padrao): Digitar ou colar topicos/ementa diretamente (ideal para escolas e faculdades).
+     * Opcao 2: Subir PDF de Plano de Curso (fluxo SENAI / ensino tecnico mantido).
+2. Backend Flask em 'app.py' (/planejamento_docente):
+   - Tratamento hibrido: processa 'conteudo_digitado' separando em blocos de conhecimento sem quebrar o fluxo.
+   - Suporte inteligente: caso nenhum topico seja fornecido, a IA deduz os modulos com base no componente e serie.
+   - Vinculacao automatica do nome da instituicao escolar do perfil do usuario no cabecalho dos planejamentos.
+3. Formulario de Atividades ('templates/index.html'):
+   - Rotulos atualizados para contemplar Ano/Serie escolar e Componentes Curriculares da educacao basica.
+
 ================================================================================
 PROXIMOS PASSOS A EXECUTAR:
-- Iniciar a FASE 2: Entrada flexivel de conteudo (gerar planejamentos e planos
-  sem obrigatoriedade de arquivo PDF de Plano de Curso).
+- Iniciar a FASE 3: Inteligencia Pedagogica e Alinhamento BNCC (adaptar prompts
+  em 'ia/planejamento_bloom.py' e 'ia/gerador.py' conforme a faixa etaria e
+  habilidades da BNCC).
 ================================================================================

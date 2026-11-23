@@ -2450,18 +2450,23 @@ def planejamento_docente():
                 print(f"[INFO] Modelo de planejamento Word (.docx) enviado: {caminho_modelo_custom}")
 
         # ----------------------------------------------------------
-        # 1. Lê o PDF do Plano de Curso
+        # 1. Obtenção dos Dados Pedagógicos (Digitados ou via PDF)
         # ----------------------------------------------------------
-        arquivo_plano = request.files.get("arquivo_plano_pdf")
+        tipo_entrada = request.form.get("tipo_entrada_conteudo", "texto")
+        conteudo_digitado = request.form.get("conteudo_digitado", "").strip()
+
         dados_plano = {
             "unidade_curricular": unidade_curricular,
-            "objetivo_geral": "",
+            "objetivo_geral": f"Desenvolver competências e conteúdos fundamentais de {unidade_curricular}",
             "capacidades_tecnicas": [],
             "conhecimentos": [],
+            "grupos_conhecimentos": [],
             "texto_bruto": ""
         }
 
-        if arquivo_plano and arquivo_plano.filename:
+        arquivo_plano = request.files.get("arquivo_plano_pdf")
+
+        if tipo_entrada == "pdf" and arquivo_plano and arquivo_plano.filename:
             nome_plano = secure_filename(arquivo_plano.filename)
             caminho_plano = os.path.join(pasta_upload, nome_plano)
             arquivo_plano.save(caminho_plano)
@@ -2472,6 +2477,22 @@ def planejamento_docente():
                 print(f"[OK] PDF lido: {len(dados_plano.get('conhecimentos', []))} conhecimentos extraídos")
             except Exception as e:
                 print(f"[AVISO] Erro ao ler PDF do plano: {e}")
+        elif conteudo_digitado:
+            # Processa ementa / tópicos digitados diretamente pelo professor
+            linhas_conteudo = [l.strip() for l in conteudo_digitado.splitlines() if l.strip()]
+            dados_plano["conhecimentos"] = linhas_conteudo
+            dados_plano["texto_bruto"] = conteudo_digitado
+            print(f"[OK] Entrada por tópicos digitados: {len(linhas_conteudo)} tópicos informados.")
+        else:
+            # Caso não tenha subido PDF e não tenha digitado nada, o fallback inteligente formula os tópicos
+            dados_plano["conhecimentos"] = [
+                f"Introdução e contextualização de {unidade_curricular}",
+                f"Conceitos e princípios essenciais de {unidade_curricular}",
+                f"Procedimentos fundamentais e aplicações de {unidade_curricular}",
+                f"Exercícios e consolidação prática em {unidade_curricular}",
+                f"Avaliação e síntese dos conhecimentos em {unidade_curricular}"
+            ]
+            print("[INFO] Nenhum arquivo ou ementa fornecida. A IA preencherá automaticamente.")
 
         # ----------------------------------------------------------
         # 2. Lê a Matriz SAEP (opcional)
@@ -2545,7 +2566,7 @@ def planejamento_docente():
             "unidade_curricular": unidade_curricular,
             "codigo_turma":       codigo_turma,
             "modalidade":         modalidade,
-            "unidade_escolar":    unidade_escolar,
+            "unidade_escolar":    unidade_escolar or session.get("instituicao", ""),
             "carga_horaria":      carga_horaria,
             "horas_por_dia":      horas_por_dia,
             "data_inicio":        data_inicio_str,

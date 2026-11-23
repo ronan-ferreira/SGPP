@@ -32,47 +32,50 @@
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                         <span class="badge bg-primary rounded-pill px-2 py-1 small">1</span>
                         <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-mortarboard text-primary"></i> Identificação do Curso &amp; Unidade Curricular
+                            <i class="bi bi-mortarboard text-primary"></i> Identificação do Curso / Série e Disciplina
                         </h5>
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-8">
                             <label class="form-label">
-                                Nome do Curso <span class="text-danger">*</span>
+                                Curso / Série / Ano Escolar <span class="text-danger">*</span>
                             </label>
                             <input type="text" name="nome_curso" id="nome_curso" class="form-control form-control-lg"
-                                   placeholder="Ex: TÉCNICO EM DESENVOLVIMENTO DE SISTEMAS" required autofocus>
+                                   placeholder="Ex: 8º Ano Fundamental, 2ª Série EM ou Técnico em Informática" required autofocus>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">
                                 Código da Turma
                             </label>
                             <input type="text" name="codigo_turma" class="form-control form-control-lg"
-                                   placeholder="Ex: TEC.2026.1" value="TEC.2026.1">
+                                   placeholder="Ex: Turma A, 8ºB, TEC.2026.1" value="Turma A">
                         </div>
 
                         <div class="col-md-8">
                             <label class="form-label">
-                                Unidade Curricular (UC) <span class="text-danger">*</span>
+                                Componente Curricular / Disciplina <span class="text-danger">*</span>
                             </label>
                             <input type="text" name="unidade_curricular" id="unidade_curricular" class="form-control form-control-lg"
-                                   placeholder="Ex: Banco de Dados e Modelagem de Sistemas" required>
+                                   placeholder="Ex: Matemática, História, Banco de Dados, Língua Portuguesa..." required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">
-                                Modalidade / Nível <span class="text-danger">*</span>
+                                Segmento / Nível <span class="text-danger">*</span>
                             </label>
                             <select name="modalidade" id="modalidade" class="form-select form-select-lg" onchange="atualizarTipoCurso()" required>
-                                <option value="HABILITAÇÃO TÉCNICA">Curso Técnico (Habilitação)</option>
+                                <option value="ENSINO FUNDAMENTAL" {% if session.get('segmento') == 'fundamental' %}selected{% endif %}>Ensino Fundamental (BNCC)</option>
+                                <option value="ENSINO MÉDIO" {% if session.get('segmento') == 'medio' %}selected{% endif %}>Ensino Médio (BNCC)</option>
+                                <option value="HABILITAÇÃO TÉCNICA" {% if session.get('segmento') == 'tecnico' or not session.get('segmento') %}selected{% endif %}>Curso Técnico / Profissionalizante</option>
                                 <option value="QUALIFICAÇÃO PROFISSIONAL">Qualificação Profissional</option>
-                                <option value="APERFEIÇOAMENTO PROFISSIONAL">Aperfeiçoamento Profissional</option>
+                                <option value="EDUCAÇÃO INFANTIL" {% if session.get('segmento') == 'infantil' %}selected{% endif %}>Educação Infantil</option>
+                                <option value="ENSINO SUPERIOR" {% if session.get('segmento') == 'superior' %}selected{% endif %}>Ensino Superior / Graduação</option>
                             </select>
                             <div class="mt-2" id="dica_modelo">
                                 <span class="badge badge-subtle-primary me-1" id="badge_modelo">
-                                    <i class="bi bi-mortarboard-fill me-1"></i> Modelo Técnico (Padrão)
+                                    <i class="bi bi-mortarboard-fill me-1"></i> Modelo Padrão
                                 </span>
-                                <span class="text-muted small" id="label_modelo" style="font-size: 0.78rem;">modelo tecnico.xlsx (padrão caso não envie modelo próprio)</span>
+                                <span class="text-muted small" id="label_modelo" style="font-size: 0.78rem;">Preenchimento inteligente com Taxonomia de Bloom</span>
                             </div>
                         </div>
                     </div>
@@ -366,47 +369,84 @@
                         </div>
                     </div>
 
-                    <!-- Seção 4: Upload dos Arquivos Pedagógicos de Referência -->
+                    <!-- Seção 4: Conteúdo Programático & Referência Pedagógica -->
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                         <span class="badge bg-primary rounded-pill px-2 py-1 small">4</span>
                         <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                            <i class="bi bi-cloud-arrow-up text-primary"></i> Arquivos Pedagógicos de Referência (Plano de Curso &amp; Matriz)
+                            <i class="bi bi-journal-bookmark text-primary"></i> Conteúdo Programático &amp; Referência Pedagógica
                         </h5>
                     </div>
 
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <div class="upload-dropzone h-100 d-flex flex-column justify-content-between">
-                                <div>
-                                    <div class="upload-icon-badge">
-                                        <i class="bi bi-file-earmark-pdf"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-1">Plano de Curso (PDF) <span class="text-danger">*</span></h6>
-                                    <p class="text-muted small mb-3">
-                                        Envie o PDF do Plano de Curso. O sistema identificará automaticamente os conteúdos e competências da UC informada.
-                                    </p>
-                                </div>
-                                <div>
-                                    <input type="file" name="arquivo_plano_pdf" id="arquivo_plano_pdf" class="form-control"
-                                           accept=".pdf" required>
+                    <!-- Seleção de Entrada de Conteúdo -->
+                    <div class="p-3 bg-light rounded-3 border mb-4">
+                        <label class="form-label fw-bold mb-2">
+                            <i class="bi bi-input-cursor-text text-primary me-1"></i> Como você prefere informar os conteúdos da disciplina?
+                        </label>
+
+                        <div class="d-flex flex-wrap gap-3 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_entrada_conteudo" id="entrada_texto" value="texto" checked onchange="alternarEntradaConteudo('texto')">
+                                <label class="form-check-label fw-semibold" for="entrada_texto">
+                                    <i class="bi bi-pencil-square text-success me-1"></i> Digitar / Colar Tópicos (Ideal para BNCC, Escolas e Faculdades)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="tipo_entrada_conteudo" id="entrada_pdf" value="pdf" onchange="alternarEntradaConteudo('pdf')">
+                                <label class="form-check-label fw-semibold" for="entrada_pdf">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i> Subir PDF de Plano de Curso (Padrão SENAI / Técnico)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Opção 1: Digitar Tópicos/Ementa -->
+                        <div id="painel_entrada_texto">
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold text-dark">
+                                    Tópicos de Conteúdo / Ementa / Habilidades da Disciplina:
+                                </label>
+                                <textarea name="conteudo_digitado" id="conteudo_digitado" class="form-control" rows="5"
+                                          placeholder="Exemplo:&#10;1. Operações com frações e números decimais&#10;2. Resolução de situações-problema do cotidiano&#10;3. Geometria espacial e cálculo de áreas&#10;4. Estatística básica e análise de gráficos"></textarea>
+                                <div class="form-text small">
+                                    Cole os tópicos do livro didático, plano de ensino ou ementa. Se deixar em branco, a IA distribuirá os temas com base na disciplina informada!
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="upload-dropzone h-100 d-flex flex-column justify-content-between">
-                                <div>
-                                    <div class="upload-icon-badge">
-                                        <i class="bi bi-file-earmark-excel"></i>
+                        <!-- Opção 2: Upload de PDF de Plano de Curso -->
+                        <div id="painel_entrada_pdf" class="d-none">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="upload-dropzone h-100 d-flex flex-column justify-content-between p-3 border rounded bg-white">
+                                        <div>
+                                            <div class="upload-icon-badge mb-2">
+                                                <i class="bi bi-file-earmark-pdf text-danger fs-3"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">Plano de Curso (PDF)</h6>
+                                            <p class="text-muted small mb-2">
+                                                Envie o PDF do Plano de Curso do SENAI/Escola técnica para leitura automática.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <input type="file" name="arquivo_plano_pdf" id="arquivo_plano_pdf" class="form-control form-control-sm" accept=".pdf">
+                                        </div>
                                     </div>
-                                    <h6 class="fw-bold mb-1">Matriz de Referência / SAEP (Opcional)</h6>
-                                    <p class="text-muted small mb-3">
-                                        Planilha Excel (.xls/.xlsx) ou PDF com detalhamento de capacidades, competências ou níveis de Bloom.
-                                    </p>
                                 </div>
-                                <div>
-                                    <input type="file" name="arquivo_matriz" id="arquivo_matriz" class="form-control"
-                                           accept=".xls,.xlsx,.pdf">
+
+                                <div class="col-md-6">
+                                    <div class="upload-dropzone h-100 d-flex flex-column justify-content-between p-3 border rounded bg-white">
+                                        <div>
+                                            <div class="upload-icon-badge mb-2">
+                                                <i class="bi bi-file-earmark-excel text-success fs-3"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">Matriz de Referência / SAEP (Opcional)</h6>
+                                            <p class="text-muted small mb-2">
+                                                Planilha Excel (.xls/.xlsx) ou PDF complementar.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <input type="file" name="arquivo_matriz" id="arquivo_matriz" class="form-control form-control-sm" accept=".xls,.xlsx,.pdf">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -446,6 +486,22 @@
 </div>
 
 <script>
+function alternarEntradaConteudo(tipo) {
+    const painelTexto = document.getElementById('painel_entrada_texto');
+    const painelPdf = document.getElementById('painel_entrada_pdf');
+    const inputPdf = document.getElementById('arquivo_plano_pdf');
+
+    if (tipo === 'pdf') {
+        painelTexto.classList.add('d-none');
+        painelPdf.classList.remove('d-none');
+        if (inputPdf) inputPdf.required = true;
+    } else {
+        painelTexto.classList.remove('d-none');
+        painelPdf.classList.add('d-none');
+        if (inputPdf) inputPdf.required = false;
+    }
+}
+
 function verificarUploadModelo(input) {
     const badge = document.getElementById('badgeStatusModelo');
     if (!badge) return;
