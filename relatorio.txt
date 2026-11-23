@@ -95,8 +95,23 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
 4. Inicializacao do Git em C:\projetos\SGPP com commits locais organizados.
 5. Criacao deste arquivo relatorio.txt para rastreamento continuo.
 
+--- [2026-11-23] Fase 1: Perfil Docente e Identidade Institucional ---
+1. Banco de Dados: Adicionadas as colunas 'segmento', 'instituicao' e 'logo_instituicao'
+   na tabela 'usuarios' do banco 'sgpp'.
+2. Migracao automatica: 'database/conexao.py' atualizado para auto-migrar as novas
+   colunas se o banco for recriado.
+3. Cadastro e Login: 'cadastro.html' e rotas no 'app.py' atualizados para coletar
+   o segmento de ensino (Tecnico, Fundamental, Medio, Infantil, Superior) e a instituicao.
+4. Tela e Rota de Perfil (/perfil): Criado 'templates/perfil.html' permitindo que o docente
+   altere seu nome, segmento, escola e faca upload de sua logomarca (PNG/JPG/WEBP).
+5. Geradores Dinamicos de Documentos:
+   - 'utils/docx_atividade_generator.py': Cabecalho com logotipo institucional e nome da escola,
+     com rotulos universais ("Componente / Disciplina", "Nivel Cognitivo").
+   - 'utils/pdf_atividade_generator.py': ReportLab atualizado com cabecalho dinamico e rodape
+     personalizado da instituicao escolar do docente.
+
 ================================================================================
 PROXIMOS PASSOS A EXECUTAR:
-- Iniciar a FASE 1: Alteracao da tabela 'usuarios' e criacao da personalizacao de
-  perfil (segmento escolar, instituicao, logo proprio).
+- Iniciar a FASE 2: Entrada flexivel de conteudo (gerar planejamentos e planos
+  sem obrigatoriedade de arquivo PDF de Plano de Curso).
 ================================================================================

@@ -24,7 +24,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email       VARCHAR(150) NOT NULL UNIQUE,
     senha       VARCHAR(255) NOT NULL,
     perfil      VARCHAR(20) NOT NULL DEFAULT 'professor',
-    tutorial_visto BOOLEAN NOT NULL DEFAULT FALSE
+    tutorial_visto BOOLEAN NOT NULL DEFAULT FALSE,
+    segmento    VARCHAR(50) DEFAULT 'tecnico',
+    instituicao VARCHAR(150),
+    logo_instituicao VARCHAR(255)
 );
 
 COMMENT ON TABLE usuarios IS 'Usuários do sistema (professores)';

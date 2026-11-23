@@ -51,8 +51,8 @@ def gerar_docx_atividade(
     dados_cabecalho=None
 ):
     """
-    Gera um arquivo DOCX de atividade com layout profissional padrão SENAI/SAEP,
-    espelhando o design do PDF gerado via ReportLab.
+    Gera um arquivo DOCX de atividade com layout profissional e elegante,
+    adaptado para qualquer instituição de ensino (com logo e identificação dinâmica).
     """
     if not dados_cabecalho:
         dados_cabecalho = {}
@@ -61,6 +61,8 @@ def gerar_docx_atividade(
     uc_val = dados_cabecalho.get("unidade_curricular") or "—"
     aula_val = dados_cabecalho.get("aula_encontro") or "Encontro Regular"
     bloom_val = dados_cabecalho.get("nivel_bloom") or "Lembrar"
+    instituicao_val = dados_cabecalho.get("instituicao") or ""
+    logo_path = dados_cabecalho.get("logo_path")
     titulo_doc = titulo or "ATIVIDADE"
 
     doc = Document()
@@ -74,23 +76,43 @@ def gerar_docx_atividade(
     section.top_margin = Cm(1.5)
     section.bottom_margin = Cm(2)
 
-    # ── 1. Cabeçalho: Título centralizado ──────────────────
+    # ── 1. Topo: Logo ou Nome da Instituição ────────────────
+    if logo_path and os.path.exists(logo_path):
+        p_logo = doc.add_paragraph()
+        p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_logo.paragraph_format.space_after = Pt(2)
+        try:
+            p_logo.add_run().add_picture(logo_path, width=Cm(3.8))
+        except Exception:
+            pass
+
+    if instituicao_val:
+        p_inst = doc.add_paragraph()
+        p_inst.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_inst.paragraph_format.space_before = Pt(2)
+        p_inst.paragraph_format.space_after = Pt(4)
+        run_inst = p_inst.add_run(instituicao_val.upper())
+        run_inst.bold = True
+        run_inst.font.size = Pt(11)
+        run_inst.font.color.rgb = RGBColor(71, 85, 105)
+
+    # ── Cabeçalho: Título centralizado ──────────────────────
     p_titulo = doc.add_paragraph()
     p_titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run_titulo = p_titulo.add_run(titulo_doc.upper())
     run_titulo.bold = True
-    run_titulo.font.size = Pt(15)
-    run_titulo.font.color.rgb = RGBColor(0, 70, 150)  # #004696
+    run_titulo.font.size = Pt(14)
+    run_titulo.font.color.rgb = RGBColor(15, 23, 42)
 
-    doc.add_paragraph()  # espaço
+    doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
     # ── 2. Tabela de Identificação ──────────────────────────
     tbl = doc.add_table(rows=3, cols=4)
     tbl.style = 'Table Grid'
 
     dados_id = [
-        [("Curso:", True), (curso_val, False), ("Data:", True), ("____/____/________", False)],
-        [("Unidade Curricular:", True), (uc_val, False), ("Bloom:", True), (bloom_val, False)],
+        [("Componente / Disciplina:", True), (curso_val, False), ("Data:", True), ("____/____/________", False)],
+        [("Tópico / UC:", True), (uc_val, False), ("Nível Cognitivo:", True), (bloom_val, False)],
         [("Aula / Encontro:", True), (aula_val, False), ("Estudante:", True), ("____________________________", False)],
     ]
 

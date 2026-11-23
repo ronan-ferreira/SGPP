@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block titulo %}Meu Perfil Pedagógico — SGPP{% endblock %}
+
+{% block conteudo %}
+<div class="container-fluid px-0" style="max-width: 900px; margin: 0 auto;">
+
+    <!-- Cabeçalho da Página -->
+    <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="h4 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-person-gear text-primary"></i>
+                Meu Perfil & Identidade Institucional
+            </h2>
+            <p class="text-muted small mb-0">
+                Configure seu segmento de ensino e a logomarca da sua instituição para personalizar automaticamente seus documentos.
+            </p>
+        </div>
+        <a href="/dashboard" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-arrow-left"></i> Voltar ao Painel
+        </a>
+    </div>
+
+    {% if erro %}
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ erro }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    {% if sucesso %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>{{ sucesso }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-body p-4">
+            <form method="POST" action="/perfil" enctype="multipart/form-data">
+                
+                <!-- 1. Dados Pessoais Básicos -->
+                <h5 class="fw-bold text-primary mb-3 pb-2 border-bottom d-flex align-items-center gap-2">
+                    <i class="bi bi-person-vcard"></i> 1. Identificação Docente
+                </h5>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="nome">Nome Completo</label>
+                        <input type="text" name="nome" id="nome" class="form-control"
+                               value="{{ usuario.nome or '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="email">E-mail de Acesso</label>
+                        <input type="email" id="email" class="form-control bg-light"
+                               value="{{ usuario.email or '' }}" readonly disabled>
+                        <small class="text-muted">O e-mail é usado para login e não pode ser alterado diretamente.</small>
+                    </div>
+                </div>
+
+                <!-- 2. Segmento de Atuação e Instituição -->
+                <h5 class="fw-bold text-primary mb-3 pb-2 border-bottom d-flex align-items-center gap-2">
+                    <i class="bi bi-mortarboard"></i> 2. Segmento de Ensino & Rede Escolar
+                </h5>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="segmento">Segmento de Ensino Principal</label>
+                        <select name="segmento" id="segmento" class="form-select" required>
+                            <option value="tecnico" {% if usuario.segmento == 'tecnico' %}selected{% endif %}>
+                                🛠️ Ensino Técnico / Profissionalizante (SENAI, ETEC, IFs)
+                            </option>
+                            <option value="fundamental" {% if usuario.segmento == 'fundamental' %}selected{% endif %}>
+                                📚 Ensino Fundamental I e II (BNCC - Pública / Particular)
+                            </option>
+                            <option value="medio" {% if usuario.segmento == 'medio' %}selected{% endif %}>
+                                🎓 Ensino Médio Regular & Itinerários (BNCC)
+                            </option>
+                            <option value="infantil" {% if usuario.segmento == 'infantil' %}selected{% endif %}>
+                                🎨 Educação Infantil (Campos de Experiências)
+                            </option>
+                            <option value="superior" {% if usuario.segmento == 'superior' %}selected{% endif %}>
+                                🏛️ Ensino Superior / Graduação e Pós
+                            </option>
+                        </select>
+                        <small class="text-muted">A IA adaptará os termos, estratégias e profundidade conforme este segmento.</small>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="instituicao">Nome da sua Escola / Instituição</label>
+                        <input type="text" name="instituicao" id="instituicao" class="form-control"
+                               placeholder="Ex: E.E. Santos Dumont, Colégio Dom Bosco, SENAI..."
+                               value="{{ usuario.instituicao or '' }}">
+                        <small class="text-muted">Aparecerá automaticamente no cabeçalho das atividades e documentos impressos.</small>
+                    </div>
+                </div>
+
+                <!-- 3. Logomarca Institucional -->
+                <h5 class="fw-bold text-primary mb-3 pb-2 border-bottom d-flex align-items-center gap-2">
+                    <i class="bi bi-image"></i> 3. Logomarca dos Documentos
+                </h5>
+
+                <div class="row align-items-center g-3 mb-4">
+                    <div class="col-md-4 text-center">
+                        <div class="p-3 border rounded-3 bg-light d-flex flex-column align-items-center justify-content-center" style="min-height: 140px;">
+                            {% if usuario.logo_instituicao %}
+                                <img src="/static/uploads/logos/{{ usuario.logo_instituicao }}" 
+                                     alt="Logotipo da Instituição" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 100px; object-fit: contain;">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle mt-2">Logotipo Ativo</span>
+                            {% else %}
+                                <i class="bi bi-card-image text-muted fs-1 mb-2"></i>
+                                <span class="text-muted small">Sem logotipo próprio<br>(Usa logotipo padrão do sistema)</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold" for="logo">Subir Novo Logotipo (PNG, JPG ou WEBP)</label>
+                        <input type="file" name="logo" id="logo" class="form-control" accept="image/png, image/jpeg, image/webp">
+                        <div class="form-text mt-2">
+                            Recomendado: imagem com fundo transparente ou branco (máx. 2MB).
+                            O logotipo será inserido no topo das avaliações e planejamentos em Word e PDF.
+                        </div>
+
+                        {% if usuario.logo_instituicao %}
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" name="remover_logo" id="remover_logo" value="1">
+                            <label class="form-check-label text-danger small fw-semibold" for="remover_logo">
+                                <i class="bi bi-trash"></i> Remover logotipo atual e voltar ao padrão
+                            </label>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="/dashboard" class="btn btn-light px-4">Cancelar</a>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-save me-1"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

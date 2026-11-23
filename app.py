@@ -107,6 +107,8 @@ def cadastro():
 
         nome = request.form.get("nome", "").strip()
         email = request.form.get("email", "").strip().lower()
+        segmento = request.form.get("segmento", "tecnico").strip()
+        instituicao = request.form.get("instituicao", "").strip()
         senha = request.form.get("senha", "")
         confirmar_senha = request.form.get("confirmar_senha")
 
@@ -116,6 +118,7 @@ def cadastro():
                 erro="Preencha todos os campos obrigatórios.",
                 nome=nome,
                 email=email,
+                instituicao=instituicao,
             )
 
         if confirmar_senha is not None and senha != confirmar_senha:
@@ -124,6 +127,7 @@ def cadastro():
                 erro="A confirmação de senha não confere com a senha digitada.",
                 nome=nome,
                 email=email,
+                instituicao=instituicao,
             )
 
         senha_valida, msg_senha = validar_forca_senha(senha)
@@ -133,6 +137,7 @@ def cadastro():
                 erro=msg_senha,
                 nome=nome,
                 email=email,
+                instituicao=instituicao,
             )
 
         conn, cursor = get_cursor()
@@ -145,6 +150,7 @@ def cadastro():
                     erro=f"O e-mail '{email}' já está cadastrado. Faça login ou use outro e-mail.",
                     nome=nome,
                     email=email,
+                    instituicao=instituicao,
                 )
 
             senha_hash = gerar_hash_senha(senha)
@@ -156,12 +162,14 @@ def cadastro():
                     email,
                     senha,
                     perfil,
-                    tutorial_visto
+                    tutorial_visto,
+                    segmento,
+                    instituicao
                 )
-                VALUES (%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id
                 """,
-                (nome, email, senha_hash, "professor", False),
+                (nome, email, senha_hash, "professor", False, segmento, instituicao or None),
             )
 
             novo_usuario_id = cursor.fetchone()[0]
@@ -171,6 +179,8 @@ def cadastro():
             session["usuario_id"] = novo_usuario_id
             session["nome"] = nome
             session["perfil"] = "professor"
+            session["segmento"] = segmento
+            session["instituicao"] = instituicao
             session["mostrar_tutorial"] = True
 
             return redirect("/dashboard?tutorial=1")
@@ -204,7 +214,8 @@ def login():
         try:
             cursor.execute(
                 """
-                SELECT id, nome, email, perfil, senha, COALESCE(tutorial_visto, FALSE)
+                SELECT id, nome, email, perfil, senha, COALESCE(tutorial_visto, FALSE),
+                       COALESCE(segmento, 'tecnico'), instituicao, logo_instituicao
                 FROM usuarios
                 WHERE email=%s
                 """,
@@ -222,6 +233,9 @@ def login():
             session["usuario_id"] = usuario[0]
             session["nome"] = usuario[1]
             session["perfil"] = "professor"
+            session["segmento"] = usuario[6]
+            session["instituicao"] = usuario[7] or ""
+            session["logo_instituicao"] = usuario[8] or ""
 
             # Se for o primeiro acesso ou tutorial ainda não foi visto
             if not usuario[5]:
@@ -241,6 +255,97 @@ def logout():
     session.clear()
 
     return redirect("/login")
+
+
+# ============================================================
+# PERFIL DOCENTE E IDENTIDADE INSTITUCIONAL (FASE 1)
+# ============================================================
+@app.route("/perfil", methods=["GET", "POST"])
+def perfil():
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    usuario_id = session["usuario_id"]
+    conn, cursor = get_cursor()
+
+    try:
+        if request.method == "POST":
+            nome = request.form.get("nome", "").strip()
+            segmento = request.form.get("segmento", "tecnico").strip()
+            instituicao = request.form.get("instituicao", "").strip()
+            remover_logo = request.form.get("remover_logo") == "1"
+
+            if not nome:
+                cursor.execute("SELECT id, nome, email, segmento, instituicao, logo_instituicao FROM usuarios WHERE id=%s", (usuario_id,))
+                row = cursor.fetchone()
+                usr = {"id": row[0], "nome": row[1], "email": row[2], "segmento": row[3], "instituicao": row[4], "logo_instituicao": row[5]}
+                return render_template("perfil.html", usuario=usr, erro="O nome não pode ficar em branco.")
+
+            novo_nome_logo = None
+
+            # Processamento do upload do logo da instituição
+            if "logo" in request.files and request.files["logo"].filename:
+                arquivo_logo = request.files["logo"]
+                extensao = os.path.splitext(arquivo_logo.filename)[1].lower()
+
+                if extensao in [".png", ".jpg", ".jpeg", ".webp"]:
+                    nome_seguro = f"logo_user_{usuario_id}_{int(os.times().system * 1000)}{extensao}"
+                    pasta_logos = os.path.join(app.root_path, "static", "uploads", "logos")
+                    os.makedirs(pasta_logos, exist_ok=True)
+                    caminho_salvar = os.path.join(pasta_logos, nome_seguro)
+                    arquivo_logo.save(caminho_salvar)
+                    novo_nome_logo = nome_seguro
+
+            if novo_nome_logo:
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET nome = %s, segmento = %s, instituicao = %s, logo_instituicao = %s
+                    WHERE id = %s
+                    """,
+                    (nome, segmento, instituicao or None, novo_nome_logo, usuario_id),
+                )
+                session["logo_instituicao"] = novo_nome_logo
+            elif remover_logo:
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET nome = %s, segmento = %s, instituicao = %s, logo_instituicao = NULL
+                    WHERE id = %s
+                    """,
+                    (nome, segmento, instituicao or None, usuario_id),
+                )
+                session["logo_instituicao"] = ""
+            else:
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET nome = %s, segmento = %s, instituicao = %s
+                    WHERE id = %s
+                    """,
+                    (nome, segmento, instituicao or None, usuario_id),
+                )
+
+            conn.commit()
+
+            session["nome"] = nome
+            session["segmento"] = segmento
+            session["instituicao"] = instituicao
+
+            cursor.execute("SELECT id, nome, email, segmento, instituicao, logo_instituicao FROM usuarios WHERE id=%s", (usuario_id,))
+            row = cursor.fetchone()
+            usr = {"id": row[0], "nome": row[1], "email": row[2], "segmento": row[3], "instituicao": row[4], "logo_instituicao": row[5]}
+            return render_template("perfil.html", usuario=usr, sucesso="Perfil e identidade institucional atualizados com sucesso!")
+
+        # GET
+        cursor.execute("SELECT id, nome, email, segmento, instituicao, logo_instituicao FROM usuarios WHERE id=%s", (usuario_id,))
+        row = cursor.fetchone()
+        usr = {"id": row[0], "nome": row[1], "email": row[2], "segmento": row[3], "instituicao": row[4], "logo_instituicao": row[5]}
+        return render_template("perfil.html", usuario=usr)
+
+    finally:
+        release_cursor(conn, cursor)
+
 
 
 # ============================================================

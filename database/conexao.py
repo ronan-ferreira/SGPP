@@ -42,6 +42,9 @@ def _executar_migracoes_iniciais():
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute("""
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS segmento VARCHAR(50) DEFAULT 'tecnico';
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS instituicao VARCHAR(150);
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS logo_instituicao VARCHAR(255);
             ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS modalidade VARCHAR(100);
             ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS curso_id INTEGER REFERENCES cursos_plano(id) ON DELETE SET NULL;
             ALTER TABLE planos_aula ADD COLUMN IF NOT EXISTS planejamento_id INTEGER REFERENCES planejamentos_docente(id) ON DELETE SET NULL;

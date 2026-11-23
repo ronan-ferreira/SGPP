@@ -30,9 +30,10 @@ class NumberedCanvas(canvas.Canvas):
     Canvas em dois passos para calcular o total real de páginas
     e desenhar o rodapé institucional em todas elas.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, texto_rodape="SGPP — Sistema de Gestão e Planejamento Pedagógico", **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
+        self.texto_rodape = texto_rodape
 
     def showPage(self):
         self._saved_page_states.append(dict(self.__dict__))
@@ -57,7 +58,8 @@ class NumberedCanvas(canvas.Canvas):
         self.line(36, 36, 559, 36)
 
         # Informações institucionais e numeração
-        self.drawString(36, 24, "SENAI — Serviço Nacional de Aprendizagem Industrial")
+        rodape = self.texto_rodape or "SGPP — Sistema de Gestão e Planejamento Pedagógico"
+        self.drawString(36, 24, rodape[:65])
         self.drawRightString(559, 24, f"Página {self._pageNumber} de {page_count}")
         self.restoreState()
 
@@ -184,24 +186,47 @@ def gerar_pdf_atividade_reportlab(
 
     story = []
 
-    # 1. Cabeçalho com Logo SENAI e Título
-    logo_path = _localizar_logo()
+    # 1. Cabeçalho com Logo e Título
+    logo_path = cabecalho.get("logo_path") or _localizar_logo()
+    instituicao_txt = cabecalho.get("instituicao") or ""
     titulo_escaped = html.escape(titulo_doc)
-    if logo_path:
-        img_logo = Image(logo_path, width=115, height=29)
-        img_logo.hAlign = "LEFT"
-        t_header = Table([[img_logo, Paragraph(f"<b>{titulo_escaped}</b>", style_titulo)]], colWidths=[125, 398])
-        t_header.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (1, 0), "CENTER"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(t_header)
+
+    header_elements = []
+    if instituicao_txt:
+        style_inst = ParagraphStyle(
+            "InstituicaoTitulo",
+            parent=styles["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor("#475569"),
+            alignment=1,
+        )
+        header_elements.append(Paragraph(f"<b>{html.escape(instituicao_txt.upper())}</b>", style_inst))
+        header_elements.append(Spacer(1, 2))
+
+    header_elements.append(Paragraph(f"<b>{titulo_escaped}</b>", style_titulo))
+
+    if logo_path and os.path.exists(logo_path):
+        try:
+            img_logo = Image(logo_path, width=105, height=28)
+            img_logo.hAlign = "LEFT"
+            t_header = Table([[img_logo, header_elements]], colWidths=[115, 408])
+            t_header.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            story.append(t_header)
+        except Exception:
+            for el in header_elements:
+                story.append(el)
     else:
-        story.append(Paragraph(f"<b>{titulo_escaped}</b>", style_titulo))
+        for el in header_elements:
+            story.append(el)
 
     story.append(Spacer(1, 6))
 
@@ -213,15 +238,15 @@ def gerar_pdf_atividade_reportlab(
 
     dados_tabela = [
         [
-            Paragraph("<b>Curso:</b>", style_lbl),
+            Paragraph("<b>Componente:</b>", style_lbl),
             Paragraph(curso_txt, style_val),
             Paragraph("<b>Data:</b>", style_lbl),
             Paragraph("____/____/________", style_val)
         ],
         [
-            Paragraph("<b>Unidade Curricular:</b>", style_lbl),
+            Paragraph("<b>Tópico / UC:</b>", style_lbl),
             Paragraph(uc_txt, style_val),
-            Paragraph("<b>Bloom:</b>", style_lbl),
+            Paragraph("<b>Nível Cognitivo:</b>", style_lbl),
             Paragraph(bloom_txt, style_val)
         ],
         [
@@ -315,7 +340,12 @@ def gerar_pdf_atividade_reportlab(
         else:
             story.append(Paragraph(l_fmt, style_corpo))
 
-    pdf_doc.build(story, canvasmaker=NumberedCanvas)
+    rodape_custom = cabecalho.get("instituicao") or "SGPP — Sistema de Gestão e Planejamento Pedagógico"
+
+    def _canvas_com_rodape(*args, **kwargs):
+        return NumberedCanvas(*args, texto_rodape=rodape_custom, **kwargs)
+
+    pdf_doc.build(story, canvasmaker=_canvas_com_rodape)
     return True
 
 
