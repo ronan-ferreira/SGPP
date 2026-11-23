@@ -1,8 +1,8 @@
 @echo off
-title Gerador de Atividades - SENAI
+title SGPP - Sistema de Gestao e Planejamento Pedagogico
 cd /d "%~dp0"
 echo ========================================================
-echo   Iniciando o Gerador de Atividades e Planejamento SENAI
+echo   Iniciando o SGPP - Planejamento Pedagogico Universal
 echo ========================================================
 echo.
 .\venv\Scripts\python.exe iniciar_servidor.py
