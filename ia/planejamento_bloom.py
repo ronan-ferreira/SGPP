@@ -247,23 +247,68 @@ def _distribuir_conhecimentos_por_aulas(dados_plano, total_aulas, uc_nome, matri
     return dividir_em_blocos(conhecimentos_ordenados, total_aulas)
 
 
-def _obter_ambiente_e_recursos_padrao(uc_nome):
-    """Retorna o ambiente pedagógico e os recursos didáticos coerentes com a área da UC."""
+def _obter_ambiente_e_recursos_padrao(uc_nome, modalidade=""):
+    """
+    Retorna o ambiente pedagógico e os recursos didáticos coerentes com a área da disciplina
+    e com o segmento escolar (Educação Básica, Técnica ou Superior).
+    """
     u = (uc_nome or "").lower()
+    mod = (modalidade or "").lower()
+
+    # Educação Infantil
+    if any(k in mod for k in ["infantil", "creche", "pré"]):
+        return (
+            "ESPAÇO DE APRENDIZAGEM / SALA DE ATIVIDADES",
+            "MATERIAIS MANIPULÁVEIS\nJOGOS EDUCATIVOS\nLIVROS ILUSTRADOS\nTINTAS E PAPÉIS"
+        )
+
+    # Ensino Fundamental / Médio regular (BNCC)
+    if any(k in mod for k in ["fundamental", "médio", "medio", "básica", "basica"]):
+        if any(t in u for t in ["física", "fisica", "química", "quimica", "biologia", "ciências", "ciencias"]):
+            return (
+                "LABORATÓRIO DE CIÊNCIAS / SALA DE AULA",
+                "LIVRO DIDÁTICO\nVIDRARIAS E KITS EXPERIMENTAIS\nTELA / PROJETOR MULTIMÍDIA\nROTEIRO PRÁTICO"
+            )
+        if any(t in u for t in ["educação física", "educacao fisica"]):
+            return (
+                "QUADRA POLIESPORTIVA / PÁTIO ESCOLAR",
+                "BOLAS, CONES, COLETES E MATERIAIS ESPORTIVOS"
+            )
+        if any(t in u for t in ["arte", "artes"]):
+            return (
+                "SALA DE ARTES / SALA CONVENCIONAL",
+                "MATERIAIS DE PINTURA, DESENHO E EXPRESSÃO VISUAL\nIMAGENS E OBRAS DE REFERÊNCIA"
+            )
+        return (
+            "SALA DE AULA CONVENCIONAL",
+            "LIVRO DIDÁTICO\nQUADRO BRANCO / LOUSA\nPROJETOR MULTIMÍDIA / SMART TV\nATIVIDADES IMPRESSAS"
+        )
+
+    # Informática / Tecnologia (Técnico ou Superior)
     termos_ti = ["informática", "informatica", "hardware", "software", "computador", "rede", "programação", "programacao", "sistema", "dados", "digital", "digitais", "web", "java", "python", "escritório", "escritorio"]
     if any(t in u for t in termos_ti):
         return (
-            "LABORATORIO T.I",
+            "LABORATÓRIO T.I",
             "NOTEBOOK\nTELA DIGITAL\nCOMPUTADORES\nFERRAMENTAS DIDÁTICAS"
         )
-    if any(t in u for t in ["obra", "canteiro", "edifica", "constru", "topografia", "alvenaria"]):
+
+    # Indústria / Construção
+    if any(t in u for t in ["obra", "canteiro", "edifica", "constru", "topografia", "alvenaria", "mecânica", "eletro"]):
         return (
-            "SALA DE AULA / LABORATÓRIO PRÁTICO",
-            "NOTEBOOK\nTELA DIGITAL\nPROJETOS E DOCUMENTOS TÉCNICOS\nFERRAMENTAS DIDÁTICAS"
+            "OFICINA TÉCNICA / LABORATÓRIO",
+            "INSTRUMENTOS DE MEDIÇÃO\nEQUIPAMENTOS DE PROTEÇÃO (EPI)\nFERRAMENTAS TÉCNICAS\nNORMAS TÉCNICAS"
         )
+
+    # Ensino Superior / Cursos Gerais
+    if "superior" in mod or "gradua" in mod:
+        return (
+            "SALA DE AULA UNIVERSITÁRIA / AUDITÓRIO",
+            "PROJETOR MULTIMÍDIA\nTEXTOS ACADÊMICOS / ARTIGOS\nNOTEBOOK DO DOCENTE\nESTUDOS DE CASO"
+        )
+
     return (
-        "SALA DE AULA / LABORATÓRIO PRÁTICO",
-        "NOTEBOOK\nTELA DIGITAL\nRECURSOS E INSTRUMENTOS TÉCNICOS\nFERRAMENTAS DIDÁTICAS"
+        "SALA DE AULA / AMBIENTE PEDAGÓGICO",
+        "LIVRO DIDÁTICO / APOSTILA\nQUADRO INTERATIVO OU LOUSA\nRECURSOS MULTIMÍDIA\nATIVIDADES ORIENTADAS"
     )
 
 
@@ -366,16 +411,16 @@ def formular_capacidade_dia(dia, total_aulas, nivel_bloom, topicos_dia, capacida
     return f"{verbo} os conceitos, técnicas e procedimentos relativos a {topico_ref.lower()} na resolução de problemas práticos."
 
 
-def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas):
+def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas, modalidade=""):
     """
-    Gera o planejamento docente completo cruzando o Plano de Curso e a Matriz SAEP
+    Gera o planejamento docente completo cruzando os conteúdos pedagógicos
     através da Taxonomia de Bloom, com divisão exata e progressiva dos conhecimentos
-    e capacidades ao longo dos dias.
+    e capacidades ao longo dos dias, adaptado ao segmento escolar.
     """
-    uc_nome = dados_plano.get("unidade_curricular", "Unidade Curricular")
+    uc_nome = dados_plano.get("unidade_curricular", "Componente Curricular")
 
     # 1. Filtra a Matriz SAEP especificamente para esta UC
-    matriz_uc = filtrar_matriz_por_uc(dados_matriz, uc_nome)
+    matriz_uc = filtrar_matriz_por_uc(dados_matriz, uc_nome) if dados_matriz else []
 
     # 2. Extrai e limpa capacidades do Plano
     capacidades_plano = [
@@ -394,7 +439,7 @@ def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas
         uc_nome=uc_nome,
         matriz_uc=matriz_uc
     )
-    ambiente_padrao, recursos_padrao = _obter_ambiente_e_recursos_padrao(uc_nome)
+    ambiente_padrao, recursos_padrao = _obter_ambiente_e_recursos_padrao(uc_nome, modalidade=modalidade)
 
     aulas = []
     caps_usadas = set()
@@ -426,8 +471,8 @@ def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas
         criterios = cfg_bloom["criterios"]
         instrumentos = cfg_bloom["instrumentos"]
 
-        # Matriz SAEP para cursos técnicos
-        saep_dia = "Não tem cruzamento"
+        # Referência pedagógica
+        saep_dia = "Alinhado à BNCC / Diretrizes Curriculares"
         if matriz_uc:
             idx_m = min(int((dia - 1) / total_aulas * len(matriz_uc)), len(matriz_uc) - 1)
             item_m = matriz_uc[idx_m]
@@ -452,7 +497,7 @@ def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas
             "carga_horaria_str": f"{horas_por_dia} HS",
             "criterios": criterios,
             "instrumentos": instrumentos,
-            "situacao_aprendizagem": f"Situação de Aprendizagem da UC - Encontro {dia}",
+            "situacao_aprendizagem": f"Atividade Pedagógica / Prática - Encontro {dia}",
             "data_inicio": data_aula,
             "data_fim": data_aula
         }
@@ -461,17 +506,17 @@ def gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas
     return aulas
 
 
-def gerar_planejamento_ia(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas):
+def gerar_planejamento_ia(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas, modalidade=""):
     """
     Chama a IA para enriquecer os planos de aula com o cruzamento da Taxonomia de Bloom,
-    garantindo fidelidade total à separação hierárquica dos conhecimentos do Plano de Curso.
+    garantindo fidelidade total aos conhecimentos pedagógicos e adequação ao segmento escolar.
     Em caso de lentidão, indisponibilidade ou inconsistência, utiliza o motor algorítmico robusto.
     """
     uc = dados_plano.get("unidade_curricular", "")
     objetivo = dados_plano.get("objetivo_geral", "")
 
     # Filtra matriz especificamente para a UC alvo
-    matriz_uc = filtrar_matriz_por_uc(dados_matriz, uc)
+    matriz_uc = filtrar_matriz_por_uc(dados_matriz, uc) if dados_matriz else []
 
     # Distribui os conhecimentos estruturados do Plano de Curso para cada aula
     blocos_conhecimentos = _distribuir_conhecimentos_por_aulas(
@@ -484,7 +529,7 @@ def gerar_planejamento_ia(dados_plano, dados_matriz, total_aulas, horas_por_dia,
         f"Aula {i+1}: {' | '.join(bloco)}"
         for i, bloco in enumerate(blocos_conhecimentos)
     )
-    ambiente_padrao, recursos_padrao = _obter_ambiente_e_recursos_padrao(uc)
+    ambiente_padrao, recursos_padrao = _obter_ambiente_e_recursos_padrao(uc, modalidade=modalidade)
 
     capacidades_plano = [
         limpar_numeracao_texto(c) for c in dados_plano.get("capacidades_tecnicas", [])
@@ -619,4 +664,4 @@ Responda ESTRITAMENTE em formato JSON valido, sem nenhum texto antes ou depois:
         print(f"[AVISO] Aviso na geração via IA: {e}. Utilizando gerador algorítmico robusto...")
 
     # Fallback transparente para o gerador algorítmico de alta fidelidade
-    return gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas)
+    return gerar_planejamento_algoritmico(dados_plano, dados_matriz, total_aulas, horas_por_dia, datas, modalidade=modalidade)

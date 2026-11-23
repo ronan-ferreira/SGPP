@@ -548,11 +548,13 @@ def index():
             else:
                 # Completar com IA / banco externo (Usuário disse SIM!)
                 faltantes = quantidade - qtd_disp
+                segmento_user = session.get("segmento", "")
                 texto_ia = gerar_atividade(
                     conteudo,
                     dificuldade,
                     tipo,
-                    faltantes
+                    faltantes,
+                    segmento=segmento_user
                 )
                 # Salva as novas questões geradas pela IA no repositório
                 salvar_questoes_ia_no_repositorio(
@@ -569,11 +571,13 @@ def index():
 
         else:
             # Geração direta com IA / Banco Externo
+            segmento_user = session.get("segmento", "")
             atividade_gerada = gerar_atividade(
                 conteudo,
                 dificuldade,
                 tipo,
-                quantidade
+                quantidade,
+                segmento=segmento_user
             )
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=atividade_gerada,
@@ -2558,7 +2562,8 @@ def planejamento_docente():
             dados_matriz,
             total_aulas,
             horas_por_dia,
-            datas
+            datas,
+            modalidade=modalidade
         )
 
         dados_cabecalho = {

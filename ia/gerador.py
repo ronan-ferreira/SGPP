@@ -246,7 +246,7 @@ def gerar_atividade_fallback(texto_base, dificuldade, tipo, quantidade):
     return "\n\n".join(questoes)
 
 
-def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5):
+def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segmento=""):
     quantidade = int(quantidade)
     quantidade = max(1, min(quantidade, 30))
 
@@ -254,9 +254,10 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5):
     provider_ativo = cfg_geral["provider"]
     modelo_ativo = cfg_geral["gemini"]["model"] if provider_ativo == "gemini" else cfg_geral["ollama"]["model"]
 
-    print(f"[ATIVIDADE] Provedor={provider_ativo} | Modelo={modelo_ativo} | Tipo={tipo} | Dificuldade={dificuldade} | Qtd={quantidade}")
+    seg_str = str(segmento or "").lower()
+    print(f"[ATIVIDADE] Provedor={provider_ativo} | Modelo={modelo_ativo} | Segmento={seg_str or 'Geral'} | Tipo={tipo} | Dificuldade={dificuldade} | Qtd={quantidade}")
 
-    key = gerar_hash(texto_pdf, dificuldade, tipo, quantidade)
+    key = gerar_hash(f"{texto_pdf}-{seg_str}", dificuldade, tipo, quantidade)
 
     # 1. Consulta ao Cache Thread-safe
     with _cache_lock:
@@ -264,39 +265,56 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5):
             print("[CACHE] Hit atividade")
             return _cache_atividades[key]
 
+    # Ajuste de contexto pedagógico (BNCC vs Técnico)
+    eh_basica = any(k in seg_str for k in ["fundamental", "medio", "médio", "infantil"])
+
     # 2. Instruções direcionadas e objetivas
     if tipo == "objetiva":
-        instrucao_tipo = (
-            f"Crie EXATAMENTE {quantidade} questões OBJETIVAS de múltipla escolha no PADRÃO SAEP de nível {dificuldade}. "
-            "Cada questão DEVE ter EXATAMENTE 5 alternativas (A, B, C, D, E). "
-            "REGRAS SAEP OBRIGATÓRIAS: (1) Nunca use pegadinhas; (2) Nunca induza o aluno ao erro; "
-            "(3) As alternativas incorretas devem ser plausíveis mas claramente distinguíveis; "
-            "(4) Após indicar 'Resposta correta: X', inclua obrigatoriamente 'Justificativa: [explicação clara e didática da resposta correta]'."
-        )
+        if eh_basica:
+            instrucao_tipo = (
+                f"Crie EXATAMENTE {quantidade} questões OBJETIVAS de múltipla escolha alinhadas às diretrizes da BNCC de nível {dificuldade}. "
+                "Cada questão DEVE ter EXATAMENTE 4 ou 5 alternativas (A, B, C, D, E) com vocabulário adequado à faixa etária da série informada. "
+                "(1) Enunciados claros, contextualizados e formativos; (2) Sem pegadinhas; (3) Alternativas plausíveis; "
+                "(4) Após indicar 'Resposta correta: X', inclua obrigatoriamente 'Justificativa: [explicação didática clara]'."
+            )
+        else:
+            instrucao_tipo = (
+                f"Crie EXATAMENTE {quantidade} questões OBJETIVAS de múltipla escolha no PADRÃO SAEP / Técnico de nível {dificuldade}. "
+                "Cada questão DEVE ter EXATAMENTE 5 alternativas (A, B, C, D, E). "
+                "REGRAS OBRIGATÓRIAS: (1) Nunca use pegadinhas; (2) Nunca induza o aluno ao erro; "
+                "(3) As alternativas incorretas devem ser plausíveis mas claramente distinguíveis; "
+                "(4) Após indicar 'Resposta correta: X', inclua obrigatoriamente 'Justificativa: [explicação didática clara]'."
+            )
         formato = (
-            "Questão 1: [Enunciado técnico contextualizado e claro]\n"
+            "Questão 1: [Enunciado contextualizado e claro]\n"
             "A) ...\nB) ...\nC) ...\nD) ...\nE) ...\n"
             "Resposta correta: A\n"
-            "Justificativa: [Explicação clara e didática do porquê a alternativa A é correta]"
+            "Justificativa: [Explicação didática da resposta correta]"
         )
         tokens_por_questao = 220
     elif tipo == "discursiva":
         instrucao_tipo = (
-            f"Crie EXATAMENTE {quantidade} questões DISCURSIVAS analíticas de nível {dificuldade} para resposta dissertativa técnica."
+            f"Crie EXATAMENTE {quantidade} questões DISCURSIVAS formativas e analíticas de nível {dificuldade} adequadas ao nível dos estudantes."
         )
-        formato = "Questão 1: [Enunciado reflexivo/técnico]\n\nQuestão 2: [Enunciado]"
+        formato = "Questão 1: [Enunciado discursivo / reflexivo]\n\nQuestão 2: [Enunciado]"
         tokens_por_questao = 110
     elif tipo == "pratica":
-        instrucao_tipo = (
-            f"Crie EXATAMENTE {quantidade} ATIVIDADES PRÁTICAS / DESAFIOS TÉCNICOS APLICADOS de nível {dificuldade} voltados para laboratório, oficina ou estudo de caso de simulação profissional. "
-            "Cada atividade DEVE conter: Contextualização do Problema, Roteiro de Execução Passo a Passo, Recursos/Ferramentas necessárias e Critérios de Avaliação."
-        )
+        if eh_basica:
+            instrucao_tipo = (
+                f"Crie EXATAMENTE {quantidade} ATIVIDADES PRÁTICAS / DESAFIOS EM SALA de nível {dificuldade} (experimentos simples, dinâmicas ativas, exercícios de aplicação prática no cotidiano). "
+                "Cada atividade deve conter: Situação-Problema, Roteiro de Execução Passo a Passo e Critérios de Avaliação Formativa."
+            )
+        else:
+            instrucao_tipo = (
+                f"Crie EXATAMENTE {quantidade} ATIVIDADES PRÁTICAS / DESAFIOS TÉCNICOS APLICADOS de nível {dificuldade} voltados para laboratório, oficina ou estudo de caso de simulação profissional. "
+                "Cada atividade DEVE conter: Contextualização do Problema, Roteiro de Execução Passo a Passo, Recursos/Ferramentas necessárias e Critérios de Avaliação."
+            )
         formato = (
             "Questão 1: [Desafio Prático Aplicado: Título do Procedimento]\n"
-            "Contexto: [Situação real da indústria ou oficina]\n"
-            "Roteiro de Execução: [Passo a passo com etapas técnicas a executar]\n"
-            "Recursos e Segurança: [Ferramentas, instrumentos e normas de segurança/EPIs]\n"
-            "Critérios de Avaliação: [Checklist do que será avaliado no resultado final]"
+            "Contexto: [Situação real da prática ou cotidiano]\n"
+            "Roteiro de Execução: [Passo a passo com etapas a executar]\n"
+            "Recursos Necessários: [Materiais e ferramentas recomendadas]\n"
+            "Critérios de Avaliação: [Checklist do que será avaliado no resultado]"
         )
         tokens_por_questao = 200
     else:

@@ -124,9 +124,27 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
 3. Formulario de Atividades ('templates/index.html'):
    - Rotulos atualizados para contemplar Ano/Serie escolar e Componentes Curriculares da educacao basica.
 
+--- [2026-11-23] Fase 3: Inteligencia Pedagogica e Alinhamento BNCC ---
+1. Adaptabilidade de Recursos e Ambientes em 'ia/planejamento_bloom.py':
+   - A funcao '_obter_ambiente_e_recursos_padrao' agora considera a modalidade/segmento:
+     * Educacao Infantil: Espaco de aprendizagem, materiais manipulaveis, jogos e tintas.
+     * Ensino Fundamental e Medio (BNCC): Sala de aula convencional ou lab de ciencias,
+       livro didatico, quadro branco e projetor (sem forcar notebooks individuais da rede tecnica).
+     * Educacao Fisica / Artes: Quadra poliesportiva, patio escolar, materiais esportivos e artisticos.
+     * Ensino Superior: Sala universitaria, artigos academicos e estudos de caso.
+     * Ensino Tecnico: Mantido laboratorios de TI e oficinas com ferramentas tecnicas e EPIs.
+2. Motor de Bloom ('gerar_planejamento_algoritmico' e 'gerar_planejamento_ia'):
+   - Parametro 'modalidade' integrado para modular os recursos e situacoes de aprendizagem.
+   - Referencia curricular flexivel: "Alinhado a BNCC / Diretrizes Curriculares" quando nao ha matriz SAEP.
+3. Gerador de Atividades Inteligente ('ia/gerador.py'):
+   - 'gerar_atividade' adaptada para receber 'segmento':
+     * Para Educacao Basica: Questoes com linguagem e vocabulario adequados a faixa etaria,
+       foco em competencias BNCC e atividades praticas para sala de aula (dinamicas e experimentos).
+     * Para Ensino Tecnico: Mantido padrao rigoroso SAEP e desafios de bancada/oficina.
+   - Rotas em 'app.py' atualizadas para repassar o segmento do usuario logado para a geracao.
+
 ================================================================================
 PROXIMOS PASSOS A EXECUTAR:
-- Iniciar a FASE 3: Inteligencia Pedagogica e Alinhamento BNCC (adaptar prompts
-  em 'ia/planejamento_bloom.py' e 'ia/gerador.py' conforme a faixa etaria e
-  habilidades da BNCC).
+- Iniciar a FASE 4: Novos Modelos Universais de Documentos (Excel e Word)
+  sem marcas proprietarias, mantendo compatibilidade com os modelos tecnicos do SENAI.
 ================================================================================
