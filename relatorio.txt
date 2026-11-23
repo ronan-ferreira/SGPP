@@ -1,0 +1,102 @@
+================================================================================
+SGPP — SISTEMA DE GESTAO E PLANEJAMENTO PEDAGOGICO UNIVERSAL
+RELATORIO DE EVOLUCAO, ARQUITETURA E REGISTRO DE ALTERACOES
+Arquivo de Acompanhamento Continuo (Historico de Desenvolvimento)
+Ultima Atualizacao: 2026-11-23 11:17
+================================================================================
+
+[OBJETIVO DESTE ARQUIVO]
+Este arquivo centraliza o plano mestre, o diagnostico e todas as mudancas
+realizadas no projeto SGPP (C:\projetos\SGPP). 
+Ao reiniciar uma sessao de trabalho, o assistente de IA deve ler prioritariamente
+este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
+
+================================================================================
+1. CONTEXTO DO PROJETO E OBJETIVO DA TRANSFORMACAO
+================================================================================
+- Projeto Origem: gerador_atividades (C:\projetos\gerador_atividades)
+  -> Sistema focado nas metodologias SENAI (Plano de Curso com Capacidades e
+     Conhecimentos, modelos Excel SENAI Tecnico/Qualificacao, matrizes SAEP).
+  -> Esse projeto original permanece INTACTO e operando em seu proprio banco.
+
+- Novo Projeto: SGPP (C:\projetos\SGPP)
+  -> Objetivo: Tornar o sistema UNIVERSAL para atender qualquer professor do Brasil:
+     a) Professores SENAI / Ensino Tecnico (mantem fluxo de Plano de Curso).
+     b) Professores de Escolas Publicas e Particulares de Educacao Basica
+        (Educacao Infantil, Ensino Fundamental I e II, Ensino Medio regular
+        alinhados a BNCC - Base Nacional Comum Curricular).
+     c) Professores do Ensino Superior e Faculdades (Ementa, Conteudos e Bibliografia).
+
+- Bancos de Dados PostgreSQL (Isolados):
+  * gerador_atividades: Banco 'gerador_atividades' (Porta 5432)
+  * SGPP: Banco 'sgpp' (Porta 5432)
+
+================================================================================
+2. DIFERENCAS CONCEITUAIS CHAVE (SENAI vs. ESCOLAS PUBLICAS/PRIVADAS)
+================================================================================
++---------------------+-------------------------------+-----------------------------------+
+| ASPECTO             | SENAI / ENSINO TECNICO        | EDUCACAO BASICA (PUBLICA/PRIVADA) |
++---------------------+-------------------------------+-----------------------------------+
+| Referencial         | Capacidades Tecnicas/Basicas, | BNCC (Competencias e Habilidades  |
+| Curricular          | Matrizes SAEP, Mundo Trabalho | ex: EF06MA01), Curriculos Locais  |
++---------------------+-------------------------------+-----------------------------------+
+| Entrada de Dados    | PDF de Plano de Curso Oficial | Tema livre, ementa de livro,      |
+|                     | ou Matriz Excel SAEP          | habilidades BNCC ou texto digitado|
++---------------------+-------------------------------+-----------------------------------+
+| Estrutura de Tempo  | Carga horaria corrida em horas| Bimestres, Trimestres, Semestres  |
+|                     | (ex: 40h, 80h, 4h/dia)        | (ex: 2 a 4 aulas de 50min/semana) |
++---------------------+-------------------------------+-----------------------------------+
+| Vocabulario         | "Unidade Curricular",         | "Disciplina / Componente",        |
+|                     | "Capacidade", "Conhecimento"  | "Ano/Serie", "Objeto Conhecimento"|
++---------------------+-------------------------------+-----------------------------------+
+| Identidade Visual   | Logo/Cores SENAI (Azul #004696| Logo e Cabecalho proprio da escola|
+| nos Documentos      | fixo em Word/Excel/PDF)       | ou prefeitura/estado do professor |
++---------------------+-------------------------------+-----------------------------------+
+
+================================================================================
+3. PLANO MESTRE DE IMPLEMENTACAO (ROADMAP EM 4 FASES)
+================================================================================
+[FASE 1] Parametrizacao, Perfil Docente e Identidade Institucional
+- Adicionar campos no perfil/cadastro do usuario: segmento de ensino
+  (Infantil, Fundamental, Medio, Tecnico, Superior), nome da instituicao/escola
+  e upload de logotipo institucional personalizado.
+- Tornar os cabecalhos de geracao Word (.docx) e PDF dinamicos (usando a logo
+  e o nome da escola do professor).
+
+[FASE 2] Entrada Flexivel de Conteudo (Sem Exigir PDF de Plano de Curso)
+- Permitir criar planejamentos e planos de aula informando Componente Curricular,
+  Ano/Serie e digitando/colando diretamente os topicos da ementa/livro didatico.
+- Adaptar telas para que o upload de Plano de Curso SENAI seja opcional.
+
+[FASE 3] Inteligencia Pedagogica e Alinhamento BNCC
+- Prompts de IA adaptativos conforme o segmento escolar e faixa etaria dos alunos.
+- Modulo de sugestao e integracao com Habilidades e Objetos da BNCC.
+- Estrategias didaticas realistas para salas de aula convencionais da rede publica.
+
+[FASE 4] Novos Modelos Universais de Documentos (Excel e Word)
+- Modelo Universal limpo de Planejamento Docente em Excel (.xlsx) e Word (.docx).
+- Manter a compatibilidade com os modelos tecnicos do SENAI existentes.
+
+================================================================================
+4. HISTORICO DE ALTERACOES REALIZADAS
+================================================================================
+
+--- [2026-11-23] Criacao do Projeto SGPP e Banco Independente ---
+1. Criacao do diretorio C:\projetos\SGPP clonando o codigo fonte do projeto original
+   (excluindo ambientes virtuais e caches temporarios).
+2. Criacao do banco de dados dedicado 'sgpp' no PostgreSQL com todas as tabelas
+   ('usuarios', 'codigos_recuperacao', 'atividades', 'repositorio_atividades',
+    'cursos_plano', 'planejamentos_docente', 'planos_aula') e indices.
+3. Configuracao do SGPP para apontar ao novo banco:
+   - C:\projetos\SGPP\.env (DB_NAME=sgpp, FLASK_SECRET_KEY=sgpp_secret_key_2026)
+   - C:\projetos\SGPP\.env.example (DB_NAME=sgpp)
+   - C:\projetos\SGPP\database\conexao.py (default dbname="sgpp")
+   - C:\projetos\SGPP\app.py (secret key atualizada)
+4. Inicializacao do Git em C:\projetos\SGPP com commits locais organizados.
+5. Criacao deste arquivo relatorio.txt para rastreamento continuo.
+
+================================================================================
+PROXIMOS PASSOS A EXECUTAR:
+- Iniciar a FASE 1: Alteracao da tabela 'usuarios' e criacao da personalizacao de
+  perfil (segmento escolar, instituicao, logo proprio).
+================================================================================
