@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Dashboard &mdash; Painel de Controle SGPP{% endblock %}
+
+{% block conteudo %}
+
+{% if abrir_tutorial %}
+<script>
+    window.SGPP_AUTO_TUTORIAL = true;
+</script>
+{% endif %}
+
+<div class="py-2">
+
+    <!-- Cabeçalho do Painel -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="fw-bold mb-1">
+                Painel Pedagógico
+            </h2>
+            <p class="text-muted mb-0 small">
+                Gerencie seus planejamentos curriculares, planos de aula estruturados e atividades avaliativas com IA.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm shadow-sm d-flex align-items-center gap-1" onclick="abrirTutorial()">
+                <i class="bi bi-lightbulb-fill text-warning"></i> Tutorial Passo a Passo
+            </button>
+            <a href="/planejamento_docente" class="btn btn-primary btn-sm shadow-sm">
+                <i class="bi bi-plus-lg"></i> Novo Planejamento
+            </a>
+            <a href="/nova_atividade" class="btn btn-outline-secondary btn-sm shadow-sm">
+                <i class="bi bi-pencil-square"></i> Nova Atividade
+            </a>
+        </div>
+    </div>
+
+    <!-- Banner de Boas-Vindas e Acesso Rápido ao Tutorial -->
+    <div class="tutorial-welcome-banner rounded-4 p-3 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 shadow-sm">
+        <div class="d-flex align-items-center gap-3">
+            <div class="banner-tutorial-icon d-flex align-items-center justify-content-center text-primary fs-3">
+                <i class="bi bi-mortarboard-fill"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-1 text-dark">
+                    Olá, Professor(a) {{ session.get('nome', '') }}! Seja bem-vindo(a) ao SGPP.
+                </h5>
+                <p class="text-secondary mb-0 small">
+                    Criamos este sistema para tirar o peso da burocracia do seu dia a dia. Quer ver como funciona de forma simples e ilustrada?
+                </p>
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm text-nowrap d-flex align-items-center gap-2" onclick="abrirTutorial()">
+            <i class="bi bi-play-circle-fill fs-5"></i>
+            <span>Ver Tutorial Passo a Passo</span>
+        </button>
+    </div>
+
+    <!-- 3 Módulos Principais (KPI Cards) -->
+    <div class="row g-4 mb-5">
+
+        <!-- 1. Planejamento Pedagógico -->
+        <div class="col-12 col-md-4">
+            <div class="dash-quadrado dash-card-planejamento h-100">
+                <a href="/listar_planejamentos" class="stretched-link text-decoration-none" title="Acessar lista de planejamentos pedagógicos"></a>
+                
+                <div class="p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="dash-icon-circle">
+                            <i class="bi bi-calendar2-range-fill"></i>
+                        </div>
+                        <span class="badge bg-white text-dark fw-bold rounded-pill px-3 py-1 shadow-sm">
+                            <i class="bi bi-file-earmark-spreadsheet text-primary me-1"></i> Excel Oficial
+                        </span>
+                    </div>
+
+                    <h4 class="fw-bold mb-1 text-white">Planejamento Docente</h4>
+                    <p class="text-white-50 small mb-3">Planilhas oficiais com Taxonomia de Bloom e divisão de aulas</p>
+
+                    <div class="d-flex align-items-baseline gap-2">
+                        <span class="dash-numero">{{ total_planejamentos }}</span>
+                        <span class="text-white-50 fw-semibold">planejamento{{ 's' if total_planejamentos != 1 else '' }}</span>
+                    </div>
+                </div>
+
+                <div class="dash-action-bar">
+                    <span class="fw-semibold small text-white">
+                        <i class="bi bi-list-ul me-1"></i> Ver Planejamentos
+                    </span>
+                    <div class="d-flex align-items-center gap-2" style="position: relative; z-index: 2;">
+                        <a href="/planejamento_docente" class="btn btn-sm btn-light fw-bold px-2 py-1 shadow-sm" title="Criar novo planejamento docente">
+                            <i class="bi bi-plus-lg"></i> Criar
+                        </a>
+                        <span class="arrow-icon text-white fs-5"><i class="bi bi-arrow-right-circle-fill"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Plano de Aula -->
+        <div class="col-12 col-md-4">
+            <div class="dash-quadrado dash-card-plano h-100">
+                <a href="/listar_cursos" class="stretched-link text-decoration-none" title="Acessar lista de planos de aula"></a>
+                
+                <div class="p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="dash-icon-circle">
+                            <i class="bi bi-journal-bookmark-fill"></i>
+                        </div>
+                        <span class="badge bg-white text-dark fw-bold rounded-pill px-3 py-1 shadow-sm">
+                            <i class="bi bi-clock-history text-info me-1"></i> Por Encontro
+                        </span>
+                    </div>
+
+                    <h4 class="fw-bold mb-1 text-white">Planos de Aula</h4>
+                    <p class="text-white-50 small mb-3">Planos diários individuais estruturados por curso e unidade curricular</p>
+
+                    <div class="d-flex align-items-baseline gap-2">
+                        <span class="dash-numero">{{ total_planos }}</span>
+                        <span class="text-white-50 fw-semibold">aula{{ 's' if total_planos != 1 else '' }} ({{ total_cursos_plano }} curso{{ 's' if total_cursos_plano != 1 else '' }})</span>
+                    </div>
+                </div>
+
+                <div class="dash-action-bar">
+                    <span class="fw-semibold small text-white">
+                        <i class="bi bi-list-ul me-1"></i> Ver Planos
+                    </span>
+                    <div class="d-flex align-items-center gap-2" style="position: relative; z-index: 2;">
+                        <a href="/planos" class="btn btn-sm btn-light fw-bold px-2 py-1 shadow-sm" title="Criar novo plano de aula">
+                            <i class="bi bi-plus-lg"></i> Criar
+                        </a>
+                        <span class="arrow-icon text-white fs-5"><i class="bi bi-arrow-right-circle-fill"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Atividades Avaliativas -->
+        <div class="col-12 col-md-4">
+            <div class="dash-quadrado dash-card-atividade h-100">
+                <a href="/atividades" class="stretched-link text-decoration-none" title="Acessar lista de atividades"></a>
+                
+                <div class="p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="dash-icon-circle">
+                            <i class="bi bi-check2-square"></i>
+                        </div>
+                        <span class="badge bg-white text-dark fw-bold rounded-pill px-3 py-1 shadow-sm">
+                            <i class="bi bi-patch-question text-warning me-1"></i> Avaliações
+                        </span>
+                    </div>
+
+                    <h4 class="fw-bold mb-1 text-white">Atividades</h4>
+                    <p class="text-white-50 small mb-3">Avaliações objetivas, discursivas e mistas com gabarito Word e PDF</p>
+
+                    <div class="d-flex align-items-baseline gap-2">
+                        <span class="dash-numero">{{ total_atividades }}</span>
+                        <span class="text-white-50 fw-semibold">atividade{{ 's' if total_atividades != 1 else '' }}</span>
+                    </div>
+                </div>
+
+                <div class="dash-action-bar">
+                    <span class="fw-semibold small text-white">
+                        <i class="bi bi-list-ul me-1"></i> Ver Atividades
+                    </span>
+                    <div class="d-flex align-items-center gap-2" style="position: relative; z-index: 2;">
+                        <a href="/nova_atividade" class="btn btn-sm btn-light fw-bold px-2 py-1 shadow-sm" title="Gerar nova atividade">
+                            <i class="bi bi-plus-lg"></i> Criar
+                        </a>
+                        <span class="arrow-icon text-white fs-5"><i class="bi bi-arrow-right-circle-fill"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Seção Secundária: Atividades por Curso -->
+    {% if cursos %}
+    <div class="card-modern p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-folder2-open text-primary"></i> Atividades Organizadas por Curso
+            </h5>
+            <a href="/atividades" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-grid-3x3-gap me-1"></i> Ver Todas ({{ total_atividades }})
+            </a>
+        </div>
+        <div class="row g-3">
+            {% for c in cursos %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <a href="/atividades?busca={{ c[0] }}" class="text-decoration-none">
+                    <div class="p-3 rounded-3 border bg-light text-center h-100 hover-lift">
+                        <h6 class="text-truncate fw-bold text-dark mb-1">{{ c[0] }}</h6>
+                        <span class="badge bg-primary text-white rounded-pill px-2 py-1 small">
+                            {{ c[1] }} atividade{{ 's' if c[1] != 1 else '' }}
+                        </span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Gerar Planos de Aula &mdash; SGPP{% endblock %}
+
+{% block conteudo %}
+
+<div class="row justify-content-center py-3">
+    <div class="col-md-9 col-lg-8">
+
+        <div class="card-modern shadow-md">
+            <!-- Header do Card -->
+            <div class="card-header-modern bg-white d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="brand-icon-wrapper flex-shrink-0" style="width: 46px; height: 46px; font-size: 1.4rem;">
+                        <i class="bi bi-journal-plus"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 fw-bold">Gerar Planos de Aula</h4>
+                        <span class="text-muted small">Crie planos de aula individuais e estruturados para cada dia do curso</span>
+                    </div>
+                </div>
+                <a href="/listar_cursos" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-journal-bookmark"></i> Ver Cursos
+                </a>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+
+                <div class="alert alert-light border shadow-sm p-3 mb-4 rounded-3 d-flex align-items-start gap-3">
+                    <i class="bi bi-lightbulb-fill text-warning fs-4"></i>
+                    <div>
+                        <strong class="d-block text-dark mb-1">Origem dos Planos de Aula:</strong>
+                        <span class="text-muted small">
+                            Você pode enviar a <strong>planilha Excel (.xlsx) do Planejamento Docente</strong> gerada anteriormente ou o <strong>PDF do Plano de Curso</strong>. Caso envie o Excel do Planejamento Docente, as capacidades e os níveis cognitivos da Taxonomia de Bloom de cada dia serão transferidos com exatidão para cada plano diário.
+                        </span>
+                    </div>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="formPlanos">
+
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="bi bi-file-earmark-arrow-up text-primary"></i> Arquivo de Referência <span class="text-danger">*</span>
+                        </label>
+                        <div class="upload-dropzone">
+                            <div class="upload-icon-badge">
+                                <i class="bi bi-cloud-arrow-up"></i>
+                            </div>
+                            <h6 class="fw-bold mb-1">Selecione o arquivo Excel ou PDF</h6>
+                            <p class="text-muted small mb-3">Planilha do Planejamento Docente (.xlsx) ou PDF do Plano de Curso</p>
+                            <input type="file" name="arquivo_pdf" id="arquivo_input" class="form-control"
+                                   accept=".xlsx,.xls,.pdf" required onchange="aoSelecionarArquivo(this)">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <i class="bi bi-mortarboard text-primary"></i> Nome do Curso / Unidade Curricular
+                        </label>
+                        <input type="text" name="nome_curso" id="campo_curso" class="form-control form-control-lg"
+                               placeholder="Opcional se enviar o Excel do Planejamento Docente">
+                        <div class="form-text small">Preenchido automaticamente ao enviar a planilha Excel.</div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-clock-history text-primary"></i> Carga Horária Total (Horas)
+                            </label>
+                            <input type="number" name="carga_horaria" id="campo_ch" class="form-control form-control-lg"
+                                   placeholder="Ex: 80" min="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-hourglass-split text-primary"></i> Aulas por Dia (Horas/dia)
+                            </label>
+                            <input type="number" name="aulas_por_dia" id="campo_hd" class="form-control form-control-lg"
+                                   value="4" min="1">
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold py-3 shadow-sm" id="btnGerarPlanos">
+                            <i class="bi bi-lightning-charge-fill me-2"></i> Gerar Planos de Aula
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function aoSelecionarArquivo(input) {
+    if (input.files && input.files[0]) {
+        const nome = input.files[0].name.toLowerCase();
+        const cursoEl = document.getElementById('campo_curso');
+        const chEl = document.getElementById('campo_ch');
+
+        if (nome.endsWith('.xlsx') || nome.endsWith('.xls')) {
+            cursoEl.placeholder = 'Identificado a partir do Excel do Planejamento Docente';
+            chEl.placeholder = 'Identificado a partir do Excel do Planejamento Docente';
+        } else {
+            cursoEl.placeholder = 'Ex: Informática Básica';
+            chEl.placeholder = 'Ex: 80';
+        }
+    }
+}
+
+document.getElementById('formPlanos').addEventListener('submit', function() {
+    const btn = document.getElementById('btnGerarPlanos');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processando e gerando planos diários... aguarde';
+});
+</script>
+
+{% endblock %}

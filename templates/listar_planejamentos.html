@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Planejamentos Docentes &mdash; SGPP{% endblock %}
+
+{% block conteudo %}
+
+<div class="py-2">
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="fw-bold mb-1">
+                Planejamentos Docentes (Excel / Word)
+            </h2>
+            <p class="text-muted mb-0 small">
+                Documentos e planilhas preenchidos com Taxonomia de Bloom, capacidades e cronograma de encontros.
+            </p>
+        </div>
+
+        <a href="/planejamento_docente" class="btn btn-primary shadow-sm text-nowrap">
+            <i class="bi bi-plus-lg"></i> Novo Planejamento
+        </a>
+    </div>
+
+    {% if request.args.get('sucesso') %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4 d-flex align-items-center rounded-3 p-3" role="alert">
+        <i class="bi bi-check-circle-fill text-success fs-3 me-3"></i>
+        <div>
+            <strong class="d-block">Planejamento Docente e Planos de Aula gerados com sucesso!</strong>
+            <span class="small text-muted">A planilha oficial do Excel foi preenchida (download iniciado) e todos os planos de aula individuais já foram estruturados.</span>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+    {% endif %}
+
+    {% if not planejamentos %}
+        <div class="card-modern p-5 text-center my-4">
+            <div class="auth-card-icon mb-3" style="width: 64px; height: 64px; font-size: 32px;">
+                <i class="bi bi-file-earmark-spreadsheet text-muted"></i>
+            </div>
+            <h4 class="fw-bold">Nenhum Planejamento Docente gerado ainda</h4>
+            <p class="text-muted small mb-4">Cadastre os dados do curso e envie o PDF para gerar a planilha oficial do Excel com Taxonomia de Bloom.</p>
+            <div>
+                <a href="/planejamento_docente" class="btn btn-primary fw-bold">
+                    <i class="bi bi-plus-lg"></i> Criar Primeiro Planejamento
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="table-modern-wrapper">
+            <div class="table-responsive">
+                <table class="table table-modern table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" width="60">#</th>
+                            <th>Curso &amp; Turma</th>
+                            <th>Unidade Curricular (UC)</th>
+                            <th class="text-center">Carga Horária</th>
+                            <th class="text-center">Aulas</th>
+                            <th class="text-center">Período</th>
+                            <th class="text-center">Data de Geração</th>
+                            <th class="text-center" width="280">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in planejamentos %}
+                        <tr>
+                            <td class="text-center fw-bold text-muted">{{ p[0] }}</td>
+                            <td class="fw-semibold">
+                                <div class="text-dark">{{ p[1] }}</div>
+                                <div class="small mt-1">
+                                    {% if p|length > 14 and p[14] %}
+                                        {% if 'TÉCNIC' in p[14]|upper or 'TECNIC' in p[14]|upper or 'HABILITA' in p[14]|upper %}
+                                            <span class="badge badge-subtle-primary me-1">
+                                                <i class="bi bi-mortarboard-fill me-1"></i> Técnico
+                                            </span>
+                                        {% elif 'APERFEIÇ' in p[14]|upper or 'APERFEIC' in p[14]|upper %}
+                                            <span class="badge badge-subtle-success me-1">
+                                                <i class="bi bi-award-fill me-1"></i> Aperfeiçoamento
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-subtle-info me-1">
+                                                <i class="bi bi-award me-1"></i> Qualificação
+                                            </span>
+                                        {% endif %}
+                                    {% elif 'TÉCNIC' in p[1]|upper or 'TECNIC' in p[1]|upper %}
+                                        <span class="badge badge-subtle-primary me-1">
+                                            <i class="bi bi-mortarboard-fill me-1"></i> Técnico
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-subtle-info me-1">
+                                            <i class="bi bi-award me-1"></i> Qualificação
+                                        </span>
+                                    {% endif %}
+                                    <span class="text-muted">Turma: {{ p[3] or 'N/I' }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-subtle-primary px-2 py-1">
+                                    {{ p[2] }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-bold">{{ p[5] }}h</span>
+                                <div class="small text-muted">{{ p[6] }}h/dia</div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary rounded-pill">{{ p[9] }} aulas</span>
+                            </td>
+                            <td class="text-center small">
+                                {% if p[7] and p[8] %}
+                                    {{ p[7].strftime('%d/%m/%Y') if p[7].strftime else p[7] }} a {{ p[8].strftime('%d/%m/%Y') if p[8].strftime else p[8] }}
+                                {% elif p[7] %}
+                                    Início: {{ p[7].strftime('%d/%m/%Y') if p[7].strftime else p[7] }}
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center small text-muted">
+                                {{ p[12].strftime('%d/%m/%Y %H:%M') if p|length > 12 and p[12] and p[12].strftime else p[12] if p|length > 12 else '' }}
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    {% if p|length > 15 and p[15] and p[15] > 0 and p[13] %}
+                                        <a href="/curso/{{ p[13] }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Abrir os {{ p[15] }} planos de aula já estruturados para este planejamento">
+                                            <i class="bi bi-journal-check text-primary"></i>
+                                            <span>Ver Planos</span>
+                                            <span class="badge bg-primary text-white rounded-pill ms-1" style="font-size: 0.72rem;">{{ p[15] }}</span>
+                                        </a>
+                                    {% else %}
+                                        <a href="/gerar_planos_planejamento/{{ p[0] }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 btn-gerar-planos shadow-sm" title="Gerar os planos de aula para este planejamento" onclick="iniciarGeracaoPlanosOverlay('{{ p[2]|replace("'", "\\'") }}')">
+                                            <i class="bi bi-magic"></i>
+                                            <span>Gerar Planos</span>
+                                        </a>
+                                    {% endif %}
+                                    {% set eh_word = p[10] and (p[10].lower().endswith('.docx') or p[10].lower().endswith('.doc')) %}
+                                    <a href="/baixar_planejamento/{{ p[0] }}" class="btn {{ 'btn-primary' if eh_word else 'btn-success' }} btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Baixar arquivo {{ 'Word (.docx)' if eh_word else 'Excel (.xlsx)' }} preenchido">
+                                        <i class="bi {{ 'bi-file-earmark-word' if eh_word else 'bi-file-earmark-excel' }}"></i>
+                                        <span>{{ 'Word' if eh_word else 'Excel' }}</span>
+                                    </a>
+                                    <a href="/deletar_planejamento/{{ p[0] }}" class="btn btn-outline-danger btn-sm shadow-sm"
+                                       onclick="return confirm('Deseja realmente excluir este planejamento docente e arquivos associados?')" title="Excluir planejamento">
+                                        <i class="bi bi-trash3"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+function iniciarGeracaoPlanosOverlay(uc) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        const title = document.getElementById('loadingTitle');
+        const msg = document.getElementById('loadingMessage');
+        if (title) title.innerText = 'Gerando Planos de Aula...';
+        if (msg) msg.innerText = 'Estruturando os planos diários a partir do Planejamento Docente' + (uc ? ' (' + uc + ')' : '') + '... Por favor, aguarde.';
+        overlay.classList.add('active');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const downloadId = urlParams.get('download');
+    if (downloadId) {
+        setTimeout(() => {
+            window.location.href = '/baixar_planejamento/' + downloadId;
+        }, 600);
+    }
+
+    document.querySelectorAll('.btn-gerar-planos').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.classList.add('disabled');
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Gerando...';
+        });
+    });
+});
+</script>
+
+{% endblock %}

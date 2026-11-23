@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Atividades &mdash; SGPP{% endblock %}
+
+{% block conteudo %}
+
+<div class="py-2">
+
+    <!-- Cabeçalho com Busca -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="fw-bold mb-1">
+                Banco de Atividades Avaliativas
+            </h2>
+            <p class="text-muted mb-0 small">
+                Consulte, edite, regenere e exporte para Word/PDF as atividades geradas pelo sistema.
+            </p>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 w-100 w-lg-auto">
+            <form action="/atividades" method="GET" class="d-flex gap-2 flex-grow-1">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text"
+                           name="busca"
+                           class="form-control border-start-0"
+                           placeholder="Buscar curso, disciplina, conteúdo..."
+                           value="{{ request.args.get('busca', '') }}">
+                </div>
+                <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                {% if request.args.get('busca') %}
+                <a href="/atividades" class="btn btn-outline-secondary" title="Limpar busca">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </form>
+
+            <div class="d-flex gap-2">
+                <a href="/repositorio" class="btn btn-outline-secondary shadow-sm text-nowrap flex-fill flex-sm-grow-0" title="Ver banco de questões">
+                    <i class="bi bi-archive-fill"></i> Repositório
+                </a>
+                <a href="/nova_atividade" class="btn btn-primary shadow-sm text-nowrap flex-fill flex-sm-grow-0">
+                    <i class="bi bi-plus-lg"></i> Nova Atividade
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback de Filtro -->
+    {% if request.args.get('busca') %}
+    <div class="alert alert-info py-2 px-3 mb-4 d-flex justify-content-between align-items-center rounded-3 small">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-funnel-fill"></i>
+            <span>Resultados para o termo: <strong>"{{ request.args.get('busca') }}"</strong> ({{ atividades|length }} encontrado{{ 's' if atividades|length != 1 else '' }})</span>
+        </div>
+        <a href="/atividades" class="btn btn-sm btn-outline-info">Limpar filtro</a>
+    </div>
+    {% endif %}
+
+    {% if atividades %}
+    <div class="table-modern-wrapper">
+        <div class="table-responsive">
+            <table class="table table-modern table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th width="16%">Curso</th>
+                        <th width="16%">Disciplina / UC</th>
+                        <th width="20%">Conteúdo</th>
+                        <th class="text-center" width="12%">Dificuldade</th>
+                        <th width="22%">Prévia da Atividade</th>
+                        <th class="text-center" width="14%">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for atividade in atividades %}
+                    <tr>
+                        <td class="fw-semibold text-dark">
+                            <i class="bi bi-mortarboard text-muted me-1"></i> {{ atividade[1] }}
+                        </td>
+                        <td>
+                            <span class="badge badge-subtle-primary">
+                                {{ atividade[2] }}
+                            </span>
+                            {% if 'Prática' in atividade[3] or 'pratica' in atividade[3] %}
+                                <span class="badge bg-purple bg-opacity-10 text-purple border border-purple border-opacity-25 ms-1" style="font-size: 0.68rem; color: #6f42c1; background-color: #f3e8ff;">
+                                    <i class="bi bi-tools"></i> Prática
+                                </span>
+                            {% endif %}
+                            {% if atividade|length > 8 and atividade[8] %}
+                                {% if 'repositorio' in atividade[8] %}
+                                    <div class="mt-1 d-flex flex-wrap gap-1">
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.72rem;" title="Fonte: Repositório">
+                                            <i class="bi bi-archive-fill"></i> Repositório
+                                        </span>
+                                        {% if 'professor' in atividade[8] %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="font-size: 0.72rem;" title="Autoria: Professor">
+                                            <i class="bi bi-person-fill"></i> Professor
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                {% elif atividade[8] == 'misto' %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" style="font-size: 0.72rem;" title="Origem: Híbrido (Repositório + Externo)">
+                                            <i class="bi bi-shuffle"></i> Mista (Repo + Ext)
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25" style="font-size: 0.72rem;" title="Origem: IA / Externo">
+                                            <i class="bi bi-cpu-fill"></i> Externo / IA
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">
+                            {% if atividade[3]|length > 70 %}
+                                {{ atividade[3][:70] }}...
+                            {% else %}
+                                {{ atividade[3] }}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if atividade[4] == 'fácil' %}
+                                <span class="badge badge-subtle-success">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Fácil
+                                </span>
+                            {% elif atividade[4] == 'médio' %}
+                                <span class="badge badge-subtle-warning">
+                                    <i class="bi bi-dash-circle-fill me-1"></i> Médio
+                                </span>
+                            {% elif atividade[4] == 'difícil' %}
+                                <span class="badge badge-subtle-danger">
+                                    <i class="bi bi-exclamation-circle-fill me-1"></i> Difícil
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ atividade[4]|capitalize }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted font-monospace" style="font-size: 0.82rem;">
+                            {% if atividade[5]|length > 95 %}
+                                {{ atividade[5][:95] }}...
+                            {% else %}
+                                {{ atividade[5] }}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm shadow-sm" role="group">
+                                <a class="btn btn-light border" href="/editar/{{ atividade[0] }}" title="Editar texto da atividade">
+                                    <i class="bi bi-pencil text-primary"></i>
+                                </a>
+                                <a class="btn btn-light border" href="/pdf/{{ atividade[0] }}" title="Baixar PDF formatado">
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                </a>
+                                <a class="btn btn-light border" href="/word/{{ atividade[0] }}" title="Baixar documento Word (.docx)">
+                                    <i class="bi bi-file-earmark-word text-primary"></i>
+                                </a>
+                                <a class="btn btn-light border" href="/regenerar/{{ atividade[0] }}" title="Regenerar questões com IA">
+                                    <i class="bi bi-arrow-repeat text-success"></i>
+                                </a>
+                                <a class="btn btn-light border" href="/deletar/{{ atividade[0] }}"
+                                   onclick="return confirm('Deseja realmente excluir esta atividade?')" title="Excluir atividade">
+                                    <i class="bi bi-trash3 text-danger"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginação -->
+    {% if total_paginas and total_paginas > 1 %}
+    <nav class="mt-4 d-flex justify-content-center" aria-label="Paginação de atividades">
+        <ul class="pagination pagination-sm shadow-sm">
+            <li class="page-item {% if pagina <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?pagina={{ pagina - 1 }}{% if request.args.get('busca') %}&busca={{ request.args.get('busca') }}{% endif %}">
+                    <i class="bi bi-chevron-left"></i> Anterior
+                </a>
+            </li>
+            {% for p in range(1, total_paginas + 1) %}
+            <li class="page-item {% if p == pagina %}active{% endif %}">
+                <a class="page-link" href="?pagina={{ p }}{% if request.args.get('busca') %}&busca={{ request.args.get('busca') }}{% endif %}">
+                    {{ p }}
+                </a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if pagina >= total_paginas %}disabled{% endif %}">
+                <a class="page-link" href="?pagina={{ pagina + 1 }}{% if request.args.get('busca') %}&busca={{ request.args.get('busca') }}{% endif %}">
+                    Próxima <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="card-modern p-5 text-center my-4">
+        <div class="auth-card-icon mb-3" style="width: 64px; height: 64px; font-size: 32px;">
+            <i class="bi bi-inbox-fill text-muted"></i>
+        </div>
+        <h4 class="fw-bold">Nenhuma atividade encontrada</h4>
+        <p class="text-muted small mb-4">Você ainda não gerou nenhuma atividade avaliativa ou nenhum resultado coincide com a busca.</p>
+        <div>
+            <a href="/nova_atividade" class="btn btn-primary fw-bold">
+                <i class="bi bi-plus-lg"></i> Gerar Primeira Atividade
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Planos de Aula &mdash; {{ curso[1] if curso else 'Curso' }}{% endblock %}
+
+{% block conteudo %}
+
+<div class="py-2">
+
+    <!-- Breadcrumb -->
+    <nav aria-label="Navegação estrutural" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item">
+                <a href="/listar_cursos" class="text-decoration-none text-muted">
+                    <i class="bi bi-journal-bookmark me-1"></i> Planos de Aula
+                </a>
+            </li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">
+                {% if curso %}{{ curso[1] }}{% else %}Curso #{{ curso_id }}{% endif %}
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Cabeçalho -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+        <div>
+            <h2 class="fw-bold mb-1">
+                {% if curso %}{{ curso[1] }}{% else %}Curso #{{ curso_id }}{% endif %}
+            </h2>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge badge-subtle-primary">
+                    <i class="bi bi-calendar-check me-1"></i> {{ planos|length }} encontro{{ 's' if planos|length != 1 else '' }}
+                </span>
+                {% if curso %}
+                    <span class="badge badge-subtle-warning">
+                        <i class="bi bi-clock me-1"></i> {{ curso[2] }}h totais
+                    </span>
+                    <span class="badge bg-light text-muted border">
+                        {{ curso[3] }}h/dia
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="/curso_pdf/{{ curso_id }}" class="btn btn-outline-danger shadow-sm">
+                <i class="bi bi-file-earmark-pdf"></i> PDF Completo
+            </a>
+            <a href="/curso_word/{{ curso_id }}" class="btn btn-outline-primary shadow-sm">
+                <i class="bi bi-file-earmark-word"></i> Word Completo
+            </a>
+        </div>
+    </div>
+
+    <!-- Lista de Planos de Aula -->
+    <div class="row g-3">
+        {% for plano in planos %}
+        <div class="col-12">
+            <div class="card-modern">
+                <div class="card-header-modern bg-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-dark text-white rounded-pill px-3 py-1 fw-bold">
+                            Dia {{ plano[2] }}
+                        </span>
+                        <h5 class="mb-0 fw-bold text-dark fs-6">
+                            {{ plano[3] }}
+                        </h5>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/plano/{{ plano[0] }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye"></i> Visualizar
+                        </a>
+                        <button class="btn btn-outline-success btn-sm"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#gerarAtividade{{ plano[0] }}"
+                                aria-expanded="false"
+                                title="Criar atividade avaliativa baseada neste plano">
+                            <i class="bi bi-check2-square"></i> Gerar Atividade
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulário colapsável para gerar atividade a partir do plano -->
+                <div class="collapse" id="gerarAtividade{{ plano[0] }}">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi bi-sliders text-primary"></i>
+                            <strong class="small text-dark">Personalizar Geração de Atividade &bull; Dia {{ plano[2] }}</strong>
+                        </div>
+                        <form action="/gerar_atividade_plano/{{ plano[0] }}" method="GET" class="row g-2 align-items-end">
+                            <div class="col-md-3 col-sm-6">
+                                <label class="form-label small mb-1 fw-semibold text-dark">
+                                    <i class="bi bi-ui-checks text-primary me-1"></i> Formato
+                                </label>
+                                <select name="tipo" class="form-select form-select-sm">
+                                    <option value="objetiva">Objetiva (Múltipla Escolha)</option>
+                                    <option value="discursiva">Discursiva (Dissertativa)</option>
+                                    <option value="pratica">Prática (Oficina / Lab)</option>
+                                    <option value="mista" selected>Mista (Teórica + Prática)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3 col-sm-6">
+                                <label class="form-label small mb-1 fw-semibold text-dark">
+                                    <i class="bi bi-database-fill text-success me-1"></i> Fonte
+                                </label>
+                                <select name="fonte" class="form-select form-select-sm">
+                                    <option value="repositorio">Do Repositório</option>
+                                    <option value="externo">Externo (IA)</option>
+                                    <option value="mista" selected>Mista (Repo + Externo)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2 col-sm-4">
+                                <label class="form-label small mb-1 fw-semibold text-dark">
+                                    <i class="bi bi-person-gear text-info me-1"></i> Autoria
+                                </label>
+                                <select name="autoria" class="form-select form-select-sm">
+                                    <option value="professor">Do Professor</option>
+                                    <option value="ia">Da IA</option>
+                                    <option value="mista" selected>Mista (Prof. + IA)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2 col-sm-4">
+                                <label class="form-label small mb-1 fw-semibold text-dark">
+                                    <i class="bi bi-speedometer2 text-warning me-1"></i> Dificuldade
+                                </label>
+                                <select name="dificuldade" class="form-select form-select-sm">
+                                    <option value="fácil">Fácil</option>
+                                    <option value="médio" selected>Médio</option>
+                                    <option value="difícil">Difícil</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-1 col-sm-4">
+                                <label class="form-label small mb-1 fw-semibold text-dark">
+                                    <i class="bi bi-hash text-muted"></i> Qtd
+                                </label>
+                                <input type="number" name="quantidade" class="form-control form-control-sm text-center"
+                                       value="5" min="1" max="50">
+                            </div>
+
+                            <div class="col-md-1 col-12">
+                                <button type="submit" class="btn btn-success btn-sm w-100 fw-bold shadow-xs" title="Gerar Atividade Avaliativa">
+                                    <i class="bi bi-lightning-charge-fill"></i> Gerar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Prévia do conteúdo do plano -->
+                <div class="card-body p-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <p class="text-muted small mb-0 font-monospace" style="font-size: 0.84rem; line-height: 1.6;">
+                                {{ plano[4][:280] }}{% if plano[4]|length > 280 %}...{% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                            <div class="btn-group btn-group-sm">
+                                <a href="/plano_pdf/{{ plano[0] }}" class="btn btn-light border text-danger" title="Baixar PDF do Dia {{ plano[2] }}">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </a>
+                                <a href="/plano_word/{{ plano[0] }}" class="btn btn-light border text-primary" title="Baixar Word do Dia {{ plano[2] }}">
+                                    <i class="bi bi-file-earmark-word"></i> Word
+                                </a>
+                                <a href="/deletar_plano/{{ plano[0] }}" class="btn btn-light border text-danger"
+                                   onclick="return confirm('Excluir este plano do Dia {{ plano[2] }}?')" title="Excluir aula">
+                                    <i class="bi bi-trash3"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning text-center rounded-3 p-4">
+                <i class="bi bi-exclamation-circle-fill fs-3 mb-2 d-block"></i>
+                Nenhum plano de aula encontrado para este curso.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+{% endblock %}
