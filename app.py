@@ -2566,6 +2566,12 @@ def planejamento_docente():
             modalidade=modalidade
         )
 
+        logo_path = None
+        if session.get("logo_instituicao"):
+            candidato_logo = os.path.join(app.root_path, "static", "uploads", "logos", session["logo_instituicao"])
+            if os.path.exists(candidato_logo):
+                logo_path = candidato_logo
+
         dados_cabecalho = {
             "nome_curso":         nome_curso,
             "unidade_curricular": unidade_curricular,
@@ -2576,7 +2582,8 @@ def planejamento_docente():
             "horas_por_dia":      horas_por_dia,
             "data_inicio":        data_inicio_str,
             "data_fim":           data_fim_str,
-            "instrutor":          session.get("nome", "")
+            "instrutor":          session.get("nome", ""),
+            "logo_path":          logo_path
         }
 
         os.makedirs("outputs", exist_ok=True)

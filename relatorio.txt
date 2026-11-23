@@ -143,8 +143,26 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
      * Para Ensino Tecnico: Mantido padrao rigoroso SAEP e desafios de bancada/oficina.
    - Rotas em 'app.py' atualizadas para repassar o segmento do usuario logado para a geracao.
 
+--- [2026-11-23] Fase 4: Modelos Universais de Documentos (Excel e Word) ---
+1. Desacoplamento de Logomarca em 'utils/excel_planejamento_generator.py':
+   - 'obter_bytes_logo_oficial' e 'garantir_logo_oficial' atualizadas para aceitar 'logo_custom_path'.
+   - Quando o professor faz upload da sua logomarca no perfil, ela e injetada diretamente
+     na planilha Excel gerada (.xlsx) substituindo o logotipo fixo do SENAI.
+   - Mantida compatibilidade: para professores do SENAI ou sem logo enviado, a logo oficial do SENAI
+     permanece preservada com 100% de fidelidade visual.
+2. Flexibilidade em 'utils/docx_planejamento_generator.py':
+   - 'gerar_docx_planejamento' agora possui parametro opcional para 'caminho_modelo'.
+   - Caso o usuario nao envie um modelo Word customizado, o sistema gera dinamicamente a estrutura
+     completa de cabecalho e tabela de aulas no Word (.docx).
+   - Resolvido tratamento defensivo para estilizacao de tabelas em ambientes Word limpos.
+3. Integracao no Fluxo Flask ('app.py'):
+   - A rota '/planejamento_docente' recupera a logomarca do perfil da sessao ativa e a
+     encaminha automaticamente para os geradores de documentos.
+
 ================================================================================
-PROXIMOS PASSOS A EXECUTAR:
-- Iniciar a FASE 4: Novos Modelos Universais de Documentos (Excel e Word)
-  sem marcas proprietarias, mantendo compatibilidade com os modelos tecnicos do SENAI.
+STATUS ATUAL: TODAS AS 4 FASES DE TRANSFORMACAO CONCLUIDAS COM SUCESSO!
+O SGPP agora atende perfeitamente:
+- Docentes do SENAI (Plano de curso, matrizes SAEP e modelos tecnicos)
+- Docentes de Escolas Publicas e Particulares (Educacao Infantil, Fundamental e Medio - BNCC)
+- Docentes do Ensino Superior / Faculdades (Ementa, ementario e bibliografia)
 ================================================================================

@@ -22,8 +22,15 @@ LOGO_DOWNLOADS = r"C:\Users\ronanjose\Downloads\SENAI_logo_2024 (1).png"
 LOGO_PROJETO   = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
 
 
-def obter_bytes_logo_oficial():
-    """Retorna os bytes da logo oficial do SENAI 2024."""
+def obter_bytes_logo_oficial(logo_custom_path=None):
+    """Retorna os bytes da logo institucional (do professor ou SENAI como fallback)."""
+    if logo_custom_path and os.path.exists(logo_custom_path):
+        try:
+            with open(logo_custom_path, "rb") as f:
+                return f.read()
+        except Exception:
+            pass
+
     for caminho in [LOGO_DOWNLOADS, LOGO_PROJETO]:
         if caminho and os.path.exists(caminho):
             try:
@@ -34,12 +41,12 @@ def obter_bytes_logo_oficial():
     return None
 
 
-def garantir_logo_oficial(caminho_xlsx: str):
+def garantir_logo_oficial(caminho_xlsx: str, logo_custom_path=None):
     """
-    Garante que a logo oficial do SENAI (2024) esteja sempre inserida com 100%
-    de fidelidade visual dentro da planilha Excel gerada em ambos os modelos.
+    Insere com fidelidade a logo institucional (da escola do professor ou SENAI)
+    na mídia da planilha Excel.
     """
-    logo_bytes = obter_bytes_logo_oficial()
+    logo_bytes = obter_bytes_logo_oficial(logo_custom_path=logo_custom_path)
     if not logo_bytes or not os.path.exists(caminho_xlsx):
         return
 
@@ -645,7 +652,8 @@ def _gerar_excel_qualificacao(dados_cabecalho, aulas, caminho_modelo, caminho_sa
     wb.save(caminho_saida)
     wb.close()
     if aplicar_logo:
-        garantir_logo_oficial(caminho_saida)
+        logo_user_path = dados_cabecalho.get("logo_path")
+        garantir_logo_oficial(caminho_saida, logo_custom_path=logo_user_path)
     return caminho_saida
 
 
@@ -833,5 +841,6 @@ def _gerar_excel_tecnico(dados_cabecalho, aulas, caminho_modelo, caminho_saida, 
     wb.save(caminho_saida)
     wb.close()
     if aplicar_logo:
-        garantir_logo_oficial(caminho_saida)
+        logo_user_path = dados_cabecalho.get("logo_path")
+        garantir_logo_oficial(caminho_saida, logo_custom_path=logo_user_path)
     return caminho_saida

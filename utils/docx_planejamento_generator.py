@@ -414,7 +414,10 @@ def _criar_tabela_padrao_no_docx(doc, dados_cabecalho, aulas):
         "Ambiente", "Recursos", "Avaliação / Critérios", "Data / CH"
     ]
     tabela = doc.add_table(rows=1, cols=len(colunas_header))
-    tabela.style = "Table Grid"
+    try:
+        tabela.style = "Table Grid"
+    except Exception:
+        pass
 
     hdr_cells = tabela.rows[0].cells
     for i, col_name in enumerate(colunas_header):
@@ -451,16 +454,21 @@ def _criar_tabela_padrao_no_docx(doc, dados_cabecalho, aulas):
             _set_cell_borders(cell)
 
 
-def gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo, caminho_saida=None):
+def gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=None, caminho_saida=None):
     """
-    Função principal para preenchimento de Planejamento Docente a partir de modelo Word (.docx).
-    Detecta automaticamente se é formato de cartões verticais ou tabela horizontal única,
-    preenche os dados com precisão cirúrgica sem duplicar conteúdo.
+    Função principal para preenchimento de Planejamento Docente em Word (.docx).
+    Se caminho_modelo for fornecido, preenche o modelo personalizado.
+    Caso contrário, gera a partir do modelo base em templates/ ou cria novo documento estruturado.
     """
-    if not os.path.exists(caminho_modelo):
-        raise FileNotFoundError(f"Arquivo modelo Word '{caminho_modelo}' não encontrado.")
-
-    doc = Document(caminho_modelo)
+    if caminho_modelo and os.path.exists(caminho_modelo):
+        doc = Document(caminho_modelo)
+    else:
+        # Fallback para modelo padrão do sistema
+        modelo_padrao = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "modelo.docx")
+        if os.path.exists(modelo_padrao):
+            doc = Document(modelo_padrao)
+        else:
+            doc = Document()
 
     nome_curso = str(dados_cabecalho.get("nome_curso", "")).strip()
     uc = str(dados_cabecalho.get("unidade_curricular", "")).strip()
