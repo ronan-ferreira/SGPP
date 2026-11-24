@@ -18,9 +18,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     
     <!-- CSS Customizado -->
-    <link href="{{ url_for('static', filename='css/style.css') }}?v=4" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=8" rel="stylesheet">
     <!-- CSS do Tutorial Interativo -->
-    <link href="{{ url_for('static', filename='css/tutorial.css') }}?v=1" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/tutorial.css') }}?v=2" rel="stylesheet">
 </head>
 
 <body>
@@ -52,13 +52,13 @@
 </div>
 
 <!-- Barra de Navegação -->
-<nav class="navbar navbar-expand-lg navbar-dark navbar-senai">
-    <div class="container-fluid px-lg-4">
-        <a class="navbar-brand navbar-brand-senai" href="/" title="Ir para a Página Inicial (Landing Page)">
-            <img src="{{ url_for('static', filename='img/logo_sgp_icon.svg') }}" alt="Logo SGPP" width="38" height="38">
-            <div>
+<nav class="navbar navbar-expand-xl navbar-dark navbar-senai">
+    <div class="container-fluid px-2 px-lg-3 px-xl-4">
+        <a class="navbar-brand navbar-brand-senai me-2 me-xl-3" href="/" title="Ir para a Página Inicial (Landing Page)">
+            <img src="{{ url_for('static', filename='img/logo_sgp_icon.svg') }}" alt="Logo SGPP" width="34" height="34">
+            <div class="d-flex align-items-baseline">
                 <span class="fw-bold">SGPP</span>
-                <span class="fw-normal text-white-50 ms-1 small">| Gestão &amp; Planejamento Pedagógico</span>
+                <span class="fw-normal text-white-50 ms-1 small d-none d-xxl-inline">| Gestão &amp; Planejamento</span>
             </div>
         </a>
 
@@ -73,7 +73,7 @@
         </button>
 
         <div class="collapse navbar-collapse" id="menuPrincipal">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-lg-1">
+            <ul class="navbar-nav me-auto mb-2 mb-xl-0 ms-0 ms-xl-2 gap-0 gap-xl-1">
                 <li class="nav-item">
                     <a class="nav-link nav-link-modern {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
                         <i class="bi bi-speedometer2"></i>
@@ -84,7 +84,7 @@
                 <li class="nav-item">
                     <a class="nav-link nav-link-modern {% if 'planejamento' in request.path %}active{% endif %}" href="/listar_planejamentos">
                         <i class="bi bi-file-earmark-spreadsheet"></i>
-                        <span>Planejamento Docente</span>
+                        <span>Planejamento</span>
                     </a>
                 </li>
 
@@ -110,18 +110,17 @@
                 </li>
             </ul>
 
-            <div class="d-flex flex-wrap align-items-center justify-content-between justify-content-lg-end gap-2 pt-3 pt-lg-0 mt-2 mt-lg-0 border-top border-secondary border-opacity-25 border-lg-0">
+            <div class="d-flex flex-nowrap align-items-center justify-content-between justify-content-xl-end gap-2 pt-3 pt-xl-0 mt-2 mt-xl-0 border-top border-secondary border-opacity-25 border-xl-0 flex-shrink-0">
                 <!-- Botão de Acesso ao Tutorial / Como Usar -->
-                <button type="button" class="btn btn-tutorial-trigger rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2 small shadow-sm" onclick="abrirTutorial()" title="Clique para ver o passo a passo ilustrado de como usar o SGPP">
+                <button type="button" class="btn btn-tutorial-trigger rounded-pill px-2 px-xl-3 py-1 fw-bold d-flex align-items-center gap-1 gap-xl-2 small shadow-sm text-nowrap" onclick="abrirTutorial()" title="Clique para ver o passo a passo ilustrado de como usar o SGPP">
                     <i class="bi bi-lightbulb-fill text-warning"></i>
-                    <span>Como Usar (Tutorial)</span>
+                    <span>Tutorial</span>
                 </button>
 
                 <div class="dropdown">
-                    <button class="btn user-profile-badge border-0 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn user-profile-badge border-0 dropdown-toggle text-nowrap" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-person-circle fs-5 text-info"></i>
-                        <span>{{ session.get('nome', 'Professor') }}</span>
-                        <span class="badge bg-primary text-white rounded-pill px-2 py-0 small ms-1">Professor</span>
+                        <span class="user-profile-name text-truncate" style="max-width: 140px;" title="{{ session.get('nome', 'Professor') }}">{{ session.get('nome', 'Professor') }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                         <li>
