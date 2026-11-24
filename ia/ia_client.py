@@ -31,11 +31,16 @@ def obter_config_ia():
 
     # 2. Configurações do Google Gemini
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash").strip()
+    gemini_fallbacks_raw = os.environ.get(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-3.7-flash"
+    ).strip()
+    gemini_fallbacks = [m.strip() for m in gemini_fallbacks_raw.split(",") if m.strip()]
     try:
-        gemini_timeout = int(os.environ.get("GEMINI_TIMEOUT", "30"))
+        gemini_timeout = int(os.environ.get("GEMINI_TIMEOUT", "60"))
     except ValueError:
-        gemini_timeout = 30
+        gemini_timeout = 60
 
     # 3. Configurações do Grok (xAI)
     grok_key = (os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY") or "").strip()
@@ -62,6 +67,7 @@ def obter_config_ia():
         "gemini": {
             "api_key": gemini_key,
             "model": gemini_model,
+            "fallback_models": gemini_fallbacks,
             "timeout": gemini_timeout
         },
         "grok": {
@@ -95,15 +101,21 @@ def verificar_ollama_online(timeout=1.5):
         return False
 
 
-def _chamar_gemini(prompt: str, system_prompt: str = None, max_tokens: int = 2000, temperature: float = 0.2, timeout: int = 30) -> str:
-    """Chamada REST direta para a API do Google Gemini."""
+def _chamar_gemini(prompt: str, system_prompt: str = None, max_tokens: int = 2000, temperature: float = 0.2, timeout: int = 60) -> str:
+    """
+    Chamada REST direta para a API do Google Gemini com fallback automático de modelos
+    em caso de alta demanda (503), rate limit (429) ou modelo descontinuado (404).
+    """
     cfg = obter_config_ia()["gemini"]
     api_key = cfg["api_key"]
     if not api_key:
         return ""
 
-    model = cfg["model"]
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    modelos_para_tentar = []
+    for m in [cfg["model"]] + cfg.get("fallback_models", []):
+        m_limpo = (m or "").strip()
+        if m_limpo and m_limpo not in modelos_para_tentar:
+            modelos_para_tentar.append(m_limpo)
 
     contents = []
     if system_prompt:
@@ -117,30 +129,54 @@ def _chamar_gemini(prompt: str, system_prompt: str = None, max_tokens: int = 200
             "parts": [{"text": prompt}]
         })
 
+    # Modelos Gemini 3.x usam parte do orçamento de tokens em raciocínio interno;
+    # garantimos folga suficiente para não truncar a resposta final.
+    effective_max_tokens = max(int(max_tokens or 2000), 1024)
     payload = {
         "contents": contents,
         "generationConfig": {
             "temperature": temperature,
-            "maxOutputTokens": max_tokens
+            "maxOutputTokens": effective_max_tokens
         }
     }
 
-    resp = requests.post(
-        url,
-        headers={"Content-Type": "application/json"},
-        json=payload,
-        timeout=timeout or cfg["timeout"]
-    )
+    timeout_efetivo = timeout or cfg["timeout"]
 
-    if resp.status_code == 200:
-        dados = resp.json()
-        candidatos = dados.get("candidates", [])
-        if candidatos:
-            partes = candidatos[0].get("content", {}).get("parts", [])
-            textos = [p.get("text", "") for p in partes if "text" in p]
-            return "".join(textos).strip()
-    else:
-        logger.warning(f"[IA/Gemini] Erro na API ({resp.status_code}): {resp.text[:300]}")
+    for modelo in modelos_para_tentar:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        try:
+            resp = requests.post(
+                url,
+                headers={"Content-Type": "application/json"},
+                json=payload,
+                timeout=timeout_efetivo
+            )
+        except Exception as e:
+            logger.warning(f"[IA/Gemini] Falha de rede no modelo {modelo}: {e}")
+            continue
+
+        if resp.status_code == 200:
+            dados = resp.json()
+            candidatos = dados.get("candidates", [])
+            if candidatos:
+                partes = candidatos[0].get("content", {}).get("parts", [])
+                # Ignora partes marcadas como raciocínio interno ("thought": True)
+                textos = [
+                    p.get("text", "")
+                    for p in partes
+                    if "text" in p and not p.get("thought", False)
+                ]
+                resultado = "".join(textos).strip()
+                if resultado:
+                    return resultado
+            logger.warning(f"[IA/Gemini] Modelo {modelo} retornou resposta vazia.")
+        elif resp.status_code in (404, 429, 500, 503):
+            logger.warning(f"[IA/Gemini] Modelo {modelo} indisponível ({resp.status_code}), tentando próximo fallback...")
+            continue
+        else:
+            logger.warning(f"[IA/Gemini] Erro na API ({modelo}, HTTP {resp.status_code}): {resp.text[:300]}")
+            break
+
     return ""
 
 

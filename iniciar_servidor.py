@@ -111,7 +111,7 @@ if __name__ == "__main__":
         if GEMINI_KEY:
             print("  [IA] Fallback de Nuvem: Google Gemini Ativo")
     elif PROVIDER == "gemini":
-        print(f"  [IA] Provedor Ativo: Google Gemini ({os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')})")
+        print(f"  [IA] Provedor Ativo: Google Gemini ({os.environ.get('GEMINI_MODEL', 'gemini-3.6-flash')})")
     else:
         print(f"  [IA] Provedor Ativo: {PROVIDER}")
 

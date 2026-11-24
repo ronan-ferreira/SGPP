@@ -15,6 +15,9 @@ import requests
 
 def _obter_config() -> tuple[str, str, str]:
     url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    for sufixo in ("/rest/v1", "/storage/v1", "/auth/v1"):
+        if url.endswith(sufixo):
+            url = url[: -len(sufixo)].rstrip("/")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
     bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "sgpp-arquivos").strip() or "sgpp-arquivos"
     return url, key, bucket

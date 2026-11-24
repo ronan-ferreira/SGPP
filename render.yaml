@@ -3,7 +3,7 @@ services:
     name: sgpp-web
     runtime: python
     plan: starter
-    region: oregon
+    region: virginia
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 300 --access-logfile - --error-logfile - app:app
     healthCheckPath: /health
@@ -38,7 +38,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       - key: GEMINI_TIMEOUT
         value: "60"
       # --- E-mail Transacional (Resend) ---
