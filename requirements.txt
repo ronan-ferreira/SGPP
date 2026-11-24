@@ -1,29 +1,33 @@
 # ============================================================
-#  Gerador de Atividades e Planejamento Docente — SENAI
-#  Dependências do projeto
+#  SGPP — Sistema de Gestão e Planejamento Pedagógico
+#  Dependências do projeto (Desenvolvimento + Produção Render)
 # ============================================================
 
 # --- Servidor Web ---
 Flask>=3.0.0
 Werkzeug>=3.0.0
+gunicorn>=22.0.0; sys_platform != 'win32'
 waitress>=3.0.0
 
 # --- Segurança & Autenticação ---
 bcrypt>=4.0.0
 
-# --- Banco de Dados ---
+# --- Banco de Dados (PostgreSQL / Supabase) ---
 psycopg2-binary>=2.9.9
+
+# --- Pagamentos (Stripe) ---
+stripe>=11.0.0
 
 # --- Configuração ---
 python-dotenv>=1.0.0
 
-# --- Inteligência Artificial / Provedores (Ollama, Gemini, OpenAI) ---
+# --- HTTP / IA (Gemini, OpenAI, Groq, Resend, Supabase Storage) ---
 requests>=2.31.0
 
 # --- Geração de Documentos Word/PDF ---
 python-docx>=1.1.0
 docxtpl>=0.16.0
-docx2pdf>=0.1.8
+docx2pdf>=0.1.8; sys_platform == 'win32' or sys_platform == 'darwin'
 reportlab>=4.0.0
 
 # --- Leitura de PDF e OCR ---

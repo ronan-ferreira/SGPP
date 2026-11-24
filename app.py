@@ -6,14 +6,33 @@ from flask import (
     session,
     send_file,
     jsonify,
-    flash
+    flash,
+    g,
+    abort
 )
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 from PyPDF2 import PdfReader
 
-from database.conexao import get_cursor, release_cursor
+from database.conexao import get_cursor, release_cursor, testar_conexao
+from utils.storage_service import (
+    upload_arquivo_local,
+    garantir_arquivo_local,
+    deletar_arquivo,
+)
+from utils.email_service import enviar_email_boas_vindas
+from utils.stripe_service import (
+    PLANOS_STRIPE,
+    dias_trial_padrao,
+    stripe_configurado,
+    obter_status_assinatura_usuario,
+    criar_sessao_checkout,
+    criar_sessao_portal_cliente,
+    sincronizar_checkout_session,
+    processar_webhook_stripe,
+)
 
 from ia.gerador import gerar_atividade
 from utils.repositorio_service import (
@@ -43,6 +62,8 @@ from utils.matriz_saep_reader import ler_matriz_saep
 from utils.planejamento_docente_reader import ler_excel_planejamento_docente
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+import threading
 from utils.excel_reader import extrair_dados_excel, formatar_dados_para_prompt, contar_itens
 from utils.security import (
     gerar_hash_senha,
@@ -60,10 +81,124 @@ import os
 import re
 
 
+IS_PRODUCTION = (
+    os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+    or bool(os.environ.get("RENDER"))
+)
+
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "sgpp_secret_key_2026")
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.config["TEMPLATES_AUTO_RELOAD"] = not IS_PRODUCTION
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600 if IS_PRODUCTION else 0
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB para uploads (PDF/Excel/Logo)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = IS_PRODUCTION
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+
+
+def _obter_caminho_logo_usuario(nome_logo: str | None) -> str | None:
+    """Resolve o caminho local da logo do professor, baixando do Supabase Storage se necessário."""
+    if not nome_logo:
+        return None
+    nome_limpo = os.path.basename(nome_logo)
+    caminho_local = os.path.join(app.root_path, "static", "uploads", "logos", nome_limpo)
+    return garantir_arquivo_local(caminho_local, f"logos/{nome_limpo}")
+
+
+def _obter_assinatura_requisicao() -> dict | None:
+    """Carrega e faz cache do status de assinatura do usuário autenticado na requisição atual."""
+    if "usuario_id" not in session:
+        return None
+    uid = session["usuario_id"]
+    if getattr(g, "_assinatura_uid", None) != uid or not hasattr(g, "assinatura_atual"):
+        g.assinatura_atual = obter_status_assinatura_usuario(uid)
+        g._assinatura_uid = uid
+    return g.assinatura_atual
+
+
+@app.context_processor
+def injetar_contexto_global():
+    return {
+        "assinatura_atual": _obter_assinatura_requisicao(),
+        "trial_dias_padrao": dias_trial_padrao(),
+        "stripe_configurado": stripe_configurado(),
+    }
+
+
+_ROTAS_LIVRES_ASSINATURA = (
+    "/",
+    "/inicio",
+    "/precos",
+    "/login",
+    "/cadastro",
+    "/logout",
+    "/redefinir_senha",
+    "/esqueci_senha",
+    "/redefinir_senha/verificar",
+    "/perfil",
+    "/alterar_senha",
+    "/health",
+    "/webhook/stripe",
+    "/api/validar_senha",
+    "/api/concluir_tutorial",
+    "/api/resetar_tutorial",
+)
+
+_PREFIXOS_LIVRES_ASSINATURA = (
+    "/static/",
+    "/media/",
+    "/assinatura/",
+)
+
+
+@app.before_request
+def verificar_acesso_assinatura():
+    """Garante que usuários com período de teste vencido e sem assinatura ativa sejam redirecionados para /precos."""
+    if "usuario_id" not in session:
+        return None
+
+    caminho = request.path or "/"
+    if caminho in _ROTAS_LIVRES_ASSINATURA and not (caminho == "/" and request.method == "POST"):
+        return None
+    if any(caminho.startswith(p) for p in _PREFIXOS_LIVRES_ASSINATURA):
+        return None
+
+    assinatura = _obter_assinatura_requisicao()
+    if assinatura and not assinatura.get("acesso_liberado", True):
+        if caminho.startswith("/api/"):
+            return jsonify({
+                "erro": "Seu período de teste gratuito encerrou. Escolha um plano para continuar usando o SGPP.",
+                "redirect": "/precos?trial_expirado=1",
+            }), 402
+        return redirect("/precos?trial_expirado=1")
+
+    return None
+
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Endpoint de verificação de saúde para o Render e monitoramento."""
+    db_ok, detalhe = testar_conexao()
+    status_code = 200 if db_ok else 503
+    return jsonify({
+        "status": "ok" if db_ok else "degraded",
+        "database": "connected" if db_ok else detalhe,
+        "environment": "production" if IS_PRODUCTION else "development",
+    }), status_code
+
+
+@app.route("/media/logo/<path:filename>")
+def servir_logo_instituicao(filename):
+    """Serve a logomarca institucional com recuperação automática do Supabase Storage."""
+    nome_seguro = secure_filename(os.path.basename(filename))
+    if not nome_seguro:
+        abort(404)
+    caminho = _obter_caminho_logo_usuario(nome_seguro)
+    if not caminho or not os.path.exists(caminho):
+        abort(404)
+    return send_file(caminho, max_age=3600)
 
 
 def pode_acessar_atividade(id, usuario_id, perfil=None):
@@ -154,6 +289,7 @@ def cadastro():
                 )
 
             senha_hash = gerar_hash_senha(senha)
+            trial_fim = datetime.now() + timedelta(days=dias_trial_padrao())
 
             cursor.execute(
                 """
@@ -164,23 +300,36 @@ def cadastro():
                     perfil,
                     tutorial_visto,
                     segmento,
-                    instituicao
+                    instituicao,
+                    trial_fim,
+                    plano_status
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id
                 """,
-                (nome, email, senha_hash, "professor", False, segmento, instituicao or None),
+                (nome, email, senha_hash, "professor", False, segmento, instituicao or None, trial_fim, "trial"),
             )
 
             novo_usuario_id = cursor.fetchone()[0]
             conn.commit()
 
+            # Envia e-mail de boas-vindas em background (sem atrasar o cadastro)
+            app_url_atual = os.environ.get("APP_BASE_URL", "").strip() or request.url_root.rstrip("/")
+            threading.Thread(
+                target=enviar_email_boas_vindas,
+                args=(email, nome, dias_trial_padrao(), app_url_atual),
+                daemon=True,
+            ).start()
+
             # Autentica e inicia a sessão automaticamente para exibir o tutorial no primeiro acesso
+            session.permanent = True
             session["usuario_id"] = novo_usuario_id
             session["nome"] = nome
+            session["email"] = email
             session["perfil"] = "professor"
             session["segmento"] = segmento
             session["instituicao"] = instituicao
+            session["logo_instituicao"] = ""
             session["mostrar_tutorial"] = True
 
             return redirect("/dashboard?tutorial=1")
@@ -230,8 +379,10 @@ def login():
             # Migra transparentemente se a senha ainda estava em texto puro
             atualizar_senha_para_hash_se_necessario(usuario[0], senha, usuario[4])
 
+            session.permanent = True
             session["usuario_id"] = usuario[0]
             session["nome"] = usuario[1]
+            session["email"] = usuario[2]
             session["perfil"] = "professor"
             session["segmento"] = usuario[6]
             session["instituicao"] = usuario[7] or ""
@@ -282,18 +433,24 @@ def perfil():
                 return render_template("perfil.html", usuario=usr, erro="O nome não pode ficar em branco.")
 
             novo_nome_logo = None
+            logo_anterior = session.get("logo_instituicao") or ""
 
-            # Processamento do upload do logo da instituição
+            # Processamento do upload do logo da instituição (disco local + Supabase Storage)
             if "logo" in request.files and request.files["logo"].filename:
                 arquivo_logo = request.files["logo"]
                 extensao = os.path.splitext(arquivo_logo.filename)[1].lower()
 
                 if extensao in [".png", ".jpg", ".jpeg", ".webp"]:
-                    nome_seguro = f"logo_user_{usuario_id}_{int(os.times().system * 1000)}{extensao}"
+                    nome_seguro = f"logo_user_{usuario_id}_{int(datetime.now().timestamp() * 1000)}{extensao}"
                     pasta_logos = os.path.join(app.root_path, "static", "uploads", "logos")
                     os.makedirs(pasta_logos, exist_ok=True)
                     caminho_salvar = os.path.join(pasta_logos, nome_seguro)
                     arquivo_logo.save(caminho_salvar)
+                    upload_arquivo_local(
+                        caminho_salvar,
+                        f"logos/{nome_seguro}",
+                        content_type=arquivo_logo.mimetype,
+                    )
                     novo_nome_logo = nome_seguro
 
             if novo_nome_logo:
@@ -305,6 +462,8 @@ def perfil():
                     """,
                     (nome, segmento, instituicao or None, novo_nome_logo, usuario_id),
                 )
+                if logo_anterior and logo_anterior != novo_nome_logo:
+                    deletar_arquivo(f"logos/{os.path.basename(logo_anterior)}")
                 session["logo_instituicao"] = novo_nome_logo
             elif remover_logo:
                 cursor.execute(
@@ -315,6 +474,14 @@ def perfil():
                     """,
                     (nome, segmento, instituicao or None, usuario_id),
                 )
+                if logo_anterior:
+                    deletar_arquivo(f"logos/{os.path.basename(logo_anterior)}")
+                    caminho_antigo = os.path.join(app.root_path, "static", "uploads", "logos", os.path.basename(logo_anterior))
+                    if os.path.exists(caminho_antigo):
+                        try:
+                            os.remove(caminho_antigo)
+                        except OSError:
+                            pass
                 session["logo_instituicao"] = ""
             else:
                 cursor.execute(
@@ -459,11 +626,85 @@ def landing():
 
 
 # =========================
-# PÁGINA DE PLANOS E PREÇOS
+# PÁGINA DE PLANOS, PREÇOS E ASSINATURAS (STRIPE)
 # =========================
 @app.route("/precos", methods=["GET"])
 def precos():
-    return render_template("precos.html")
+    erro_checkout = request.args.get("erro_checkout", "").strip()
+    return render_template("precos.html", erro_checkout=erro_checkout)
+
+
+@app.route("/assinatura/checkout/<plano>", methods=["POST"])
+def assinatura_checkout(plano):
+    if "usuario_id" not in session:
+        return redirect(f"/login?next=/precos")
+
+    usuario_id = session["usuario_id"]
+    email = session.get("email", "")
+    nome = session.get("nome", "")
+
+    if not email:
+        conn, cursor = get_cursor()
+        try:
+            cursor.execute("SELECT nome, email FROM usuarios WHERE id = %s", (usuario_id,))
+            row = cursor.fetchone()
+            if row:
+                nome = nome or row[0]
+                email = row[1]
+                session["email"] = email
+        finally:
+            release_cursor(conn, cursor)
+
+    url_checkout, erro = criar_sessao_checkout(
+        usuario_id=usuario_id,
+        email=email,
+        nome=nome,
+        plano_slug=plano,
+        base_url=request.url_root.rstrip("/"),
+    )
+    if erro or not url_checkout:
+        return render_template("precos.html", erro_checkout=erro or "Erro ao iniciar checkout.")
+
+    return redirect(url_checkout, code=303)
+
+
+@app.route("/assinatura/sucesso", methods=["GET"])
+def assinatura_sucesso():
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    session_id = request.args.get("session_id", "").strip()
+    info = {}
+    if session_id:
+        _ok, info = sincronizar_checkout_session(session_id, usuario_id_esperado=session["usuario_id"])
+        # Atualiza cache da assinatura na requisição atual
+        if hasattr(g, "assinatura_atual"):
+            delattr(g, "assinatura_atual")
+
+    return render_template("assinatura_sucesso.html", info=info)
+
+
+@app.route("/assinatura/portal", methods=["POST"])
+def assinatura_portal():
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    url_portal, erro = criar_sessao_portal_cliente(
+        usuario_id=session["usuario_id"],
+        base_url=request.url_root.rstrip("/"),
+    )
+    if erro or not url_portal:
+        return redirect(f"/perfil?erro_assinatura=1")
+
+    return redirect(url_portal, code=303)
+
+
+@app.route("/webhook/stripe", methods=["POST"])
+def webhook_stripe():
+    payload = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature", "")
+    ok, mensagem, status_code = processar_webhook_stripe(payload, sig_header)
+    return jsonify({"received": ok, "message": mensagem}), status_code
 
 
 # =========================
@@ -1233,11 +1474,15 @@ def extrair_cabecalho_atividade(atividade):
     if m_b:
         bloom = m_b.group(1).strip()
 
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao")) if session else None
+
     return {
         "curso": curso,
         "unidade_curricular": uc,
         "aula_encontro": aula,
-        "nivel_bloom": bloom
+        "nivel_bloom": bloom,
+        "instituicao": session.get("instituicao", "") if session else "",
+        "logo_path": logo_path,
     }
 
 # =========================
@@ -2590,11 +2835,7 @@ def planejamento_docente():
             modalidade=modalidade
         )
 
-        logo_path = None
-        if session.get("logo_instituicao"):
-            candidato_logo = os.path.join(app.root_path, "static", "uploads", "logos", session["logo_instituicao"])
-            if os.path.exists(candidato_logo):
-                logo_path = candidato_logo
+        logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
 
         dados_cabecalho = {
             "nome_curso":         nome_curso,
@@ -2614,11 +2855,21 @@ def planejamento_docente():
         if formato_modelo == "word":
             caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
             nome_arquivo_gerado = os.path.basename(caminho_gerado)
+            upload_arquivo_local(
+                caminho_gerado,
+                f"planejamentos/{nome_arquivo_gerado}",
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
             print(f"[OK] Planejamento Docente (Word) gerado com sucesso: {caminho_gerado}")
         else:
             # Excel: usa o modelo customizado (se enviado) ou os modelos oficiais padrão (modelo_tecnico.xlsx / modelo_qualificacao.xlsx)
             caminho_gerado = gerar_excel_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
             nome_arquivo_gerado = os.path.basename(caminho_gerado)
+            upload_arquivo_local(
+                caminho_gerado,
+                f"planejamentos/{nome_arquivo_gerado}",
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
             print(f"[OK] Planejamento Docente (Excel) gerado com sucesso: {caminho_gerado}")
 
         # ----------------------------------------------------------
@@ -2762,6 +3013,7 @@ def baixar_planejamento(planejamento_id):
 
     nome_arquivo = planejamento[1]  # coluna arquivo_excel
     caminho = os.path.join("outputs", nome_arquivo)
+    garantir_arquivo_local(caminho, f"planejamentos/{nome_arquivo}")
 
     if not os.path.exists(caminho):
         return "Arquivo Excel não encontrado no servidor. Por favor, gere novamente.", 404
@@ -2793,9 +3045,10 @@ def deletar_planejamento(planejamento_id):
         if not planejamento:
             return "Planejamento não encontrado", 404
 
-        # Remove o arquivo Excel do disco, se existir
+        # Remove o arquivo Excel do disco e do Supabase Storage, se existir
         nome_arquivo = planejamento[1]
         if nome_arquivo:
+            deletar_arquivo(f"planejamentos/{nome_arquivo}")
             caminho = os.path.join("outputs", nome_arquivo)
             if os.path.exists(caminho):
                 os.remove(caminho)
@@ -2884,8 +3137,10 @@ def gerar_planos_planejamento(planejamento_id):
     finally:
         release_cursor(conn, cursor)
 
-    # 2. Lê as aulas estruturadas da planilha Excel do planejamento
+    # 2. Lê as aulas estruturadas da planilha Excel do planejamento (com fallback do Supabase Storage)
     caminho_excel = os.path.join("outputs", nome_arquivo_excel) if nome_arquivo_excel else ""
+    if caminho_excel and nome_arquivo_excel:
+        garantir_arquivo_local(caminho_excel, f"planejamentos/{nome_arquivo_excel}")
     aulas_excel = []
     if caminho_excel and os.path.exists(caminho_excel):
         try:
@@ -2973,7 +3228,7 @@ def gerar_planos_planejamento(planejamento_id):
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
-        port=5000,
+        port=int(os.environ.get("PORT", os.environ.get("SERVER_PORT", 5000))),
         debug=False,
         threaded=True
     )

@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: sgpp-web
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 300 --access-logfile - --error-logfile - app:app
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: TRIAL_DIAS
+        value: "7"
+      # --- Supabase (PostgreSQL + Storage) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_POOL_MIN
+        value: "1"
+      - key: DB_POOL_MAX
+        value: "8"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: sgpp-arquivos
+      # --- IA em Produção (Google Gemini) ---
+      - key: IA_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_TIMEOUT
+        value: "60"
+      # --- E-mail Transacional (Resend) ---
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_NAME
+        value: SGPP - Gestão Pedagógica
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      # --- Pagamentos e Assinaturas (Stripe) ---
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_MENSAL
+        sync: false
+      - key: STRIPE_PRICE_TRIMESTRAL
+        sync: false
+      - key: STRIPE_PRICE_SEMESTRAL
+        sync: false
+      - key: STRIPE_PRICE_ANUAL
+        sync: false

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block titulo %}Assinatura Confirmada &mdash; SGPP{% endblock %}
+
+{% block conteudo %}
+<div class="container py-5" style="max-width: 640px;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="p-4 text-center text-white" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+            <div class="display-4 mb-2">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <h2 class="fw-bold mb-1">Assinatura Confirmada!</h2>
+            <p class="mb-0 opacity-75">Seu acesso completo ao SGPP já está liberado.</p>
+        </div>
+        <div class="card-body p-4 p-md-5 text-center">
+            {% if info and info.plano_nome %}
+            <div class="alert alert-success border-0 bg-success-subtle text-success-emphasis rounded-3 mb-4">
+                <div class="fw-bold fs-5">{{ info.plano_nome }}</div>
+                {% if info.expira_em %}
+                <div class="small mt-1">
+                    Próxima renovação prevista: <strong>{{ info.expira_em.strftime('%d/%m/%Y') }}</strong>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <p class="text-muted mb-4">
+                Obrigado por escolher o <strong>SGPP</strong>! Você pode gerenciar sua assinatura, atualizar a forma de pagamento ou consultar faturas a qualquer momento na página <strong>Meu Perfil</strong>.
+            </p>
+
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a href="/dashboard" class="btn btn-primary btn-lg px-4 fw-semibold">
+                    <i class="bi bi-speedometer2 me-2"></i>Ir para o Painel
+                </a>
+                <a href="/perfil" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="bi bi-person-gear me-2"></i>Ver Minha Assinatura
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

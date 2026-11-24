@@ -139,6 +139,8 @@ def _chamar_gemini(prompt: str, system_prompt: str = None, max_tokens: int = 200
             partes = candidatos[0].get("content", {}).get("parts", [])
             textos = [p.get("text", "") for p in partes if "text" in p]
             return "".join(textos).strip()
+    else:
+        logger.warning(f"[IA/Gemini] Erro na API ({resp.status_code}): {resp.text[:300]}")
     return ""
 
 

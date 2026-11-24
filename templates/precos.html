@@ -7,23 +7,24 @@
     <title>Planos e Preços &mdash; SGPP</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_icone_oficial.png') }}?v=1">
 
-    <!-- Google Fonts Inter -->
+    <!-- Google Fonts Inter + Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
     <!-- Bootstrap 5 & Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- CSS Customizado -->
-    <link href="{{ url_for('static', filename='css/style.css') }}?v=4" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=10" rel="stylesheet">
 
     <style>
-        /* ── Pricing Cards ─────────────────────────────────── */
+        /* ── Pricing Cards — Identidade SGPP (Azul Marinho & Laranja) ── */
         .pricing-hero {
-            background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
-            padding: 80px 0 100px;
+            background: linear-gradient(135deg, #051430 0%, #082352 55%, #003482 100%);
+            border-bottom: 4px solid #f87200;
+            padding: 80px 0 96px;
             position: relative;
             overflow: hidden;
         }
@@ -31,16 +32,19 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse 60% 50% at 70% 50%, rgba(99,102,241,.18) 0%, transparent 70%);
+            background:
+                radial-gradient(ellipse 55% 55% at 75% 30%, rgba(248, 114, 0, 0.22) 0%, transparent 68%),
+                radial-gradient(ellipse 45% 50% at 20% 80%, rgba(0, 152, 248, 0.16) 0%, transparent 65%);
         }
         .pricing-hero-title {
+            font-family: var(--font-display);
             font-size: clamp(2rem, 5vw, 3rem);
             font-weight: 800;
             color: #fff;
             line-height: 1.15;
         }
         .pricing-hero-sub {
-            color: rgba(255,255,255,.65);
+            color: #cbd5e1;
             font-size: 1.05rem;
             max-width: 540px;
             margin: 0 auto;
@@ -49,30 +53,31 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,.08);
-            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(248, 114, 0, 0.16);
+            border: 1px solid rgba(255, 146, 36, 0.38);
             border-radius: 50px;
-            padding: 4px 14px;
-            font-size: .8rem;
-            font-weight: 600;
-            color: rgba(255,255,255,.75);
-            letter-spacing: .05em;
+            padding: 5px 15px;
+            font-size: .78rem;
+            font-weight: 700;
+            color: #ffedd5;
+            letter-spacing: .06em;
             text-transform: uppercase;
             margin-bottom: 1.2rem;
         }
         .pricing-eyebrow-dot {
-            width: 7px; height: 7px;
+            width: 8px; height: 8px;
             border-radius: 50%;
-            background: #6366f1;
+            background: #ff9224;
+            box-shadow: 0 0 10px rgba(255, 146, 36, 0.85);
             display: inline-block;
         }
 
         /* Cards */
         .pricing-card {
             background: #fff;
-            border: 1.5px solid #e8eaf0;
+            border: 1.5px solid #e2e8f0;
             border-radius: 20px;
-            padding: 36px 32px 32px;
+            padding: 36px 30px 30px;
             display: flex;
             flex-direction: column;
             transition: transform .25s, box-shadow .25s, border-color .25s;
@@ -81,49 +86,70 @@
         }
         .pricing-card:hover {
             transform: translateY(-6px);
-            box-shadow: 0 20px 50px rgba(0,0,0,.10);
+            box-shadow: 0 20px 44px rgba(6, 24, 56, 0.11);
+            border-color: #fed7aa;
         }
         .pricing-card--featured {
-            border-color: #6366f1;
-            box-shadow: 0 8px 40px rgba(99,102,241,.18);
+            border-color: #f87200;
+            box-shadow: 0 12px 38px rgba(234, 88, 12, 0.18);
+        }
+        .pricing-card--featured::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff9224, #f87200, #ea580c);
         }
         .pricing-card--featured:hover {
-            box-shadow: 0 20px 60px rgba(99,102,241,.28);
+            box-shadow: 0 22px 54px rgba(234, 88, 12, 0.28);
+            border-color: #ea580c;
         }
         .pricing-card--gold {
-            border-color: #f59e0b;
+            border-color: #003078;
+            box-shadow: 0 10px 30px rgba(0, 48, 120, 0.12);
+        }
+        .pricing-card--gold::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #003078, #0098f8);
         }
         .pricing-card--gold:hover {
-            box-shadow: 0 20px 60px rgba(245,158,11,.18);
+            box-shadow: 0 22px 54px rgba(0, 48, 120, 0.22);
+            border-color: #003078;
         }
 
         /* Badge */
         .pricing-badge {
             display: inline-block;
+            width: fit-content;
             font-size: .72rem;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: .07em;
             text-transform: uppercase;
-            padding: 3px 12px;
+            padding: 4px 12px;
             border-radius: 50px;
             margin-bottom: 16px;
         }
         .pricing-badge--indigo {
-            background: #eef2ff;
-            color: #4f46e5;
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
         }
         .pricing-badge--gold {
-            background: #fef3c7;
-            color: #b45309;
+            background: #eef5ff;
+            color: #003078;
+            border: 1px solid #bfdbfe;
         }
 
         /* Period label */
         .pricing-period {
             font-size: .82rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .07em;
-            color: #6b7280;
+            color: #64748b;
             margin-bottom: 8px;
         }
 
@@ -138,24 +164,25 @@
         .pricing-currency {
             font-size: 1.1rem;
             font-weight: 700;
-            color: #374151;
+            color: #475569;
             margin-top: 10px;
         }
         .pricing-value {
+            font-family: var(--font-display);
             font-size: 3.4rem;
             font-weight: 800;
-            color: #111827;
+            color: #061838;
             line-height: 1;
         }
         .pricing-cents {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #374151;
+            color: #475569;
             margin-top: 14px;
         }
         .pricing-recurrence {
             font-size: .82rem;
-            color: #9ca3af;
+            color: #94a3b8;
             margin-bottom: 6px;
         }
         .pricing-economy {
@@ -163,11 +190,12 @@
             align-items: center;
             gap: 4px;
             font-size: .78rem;
-            font-weight: 600;
-            color: #059669;
+            font-weight: 700;
+            color: #047857;
             background: #ecfdf5;
+            border: 1px solid #a7f3d0;
             border-radius: 50px;
-            padding: 2px 10px;
+            padding: 3px 10px;
             margin-bottom: 4px;
         }
 
@@ -179,9 +207,9 @@
         }
         .pricing-features li {
             font-size: .88rem;
-            color: #374151;
+            color: #334155;
             padding: 7px 0;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid #f1f5f9;
             display: flex;
             align-items: center;
         }
@@ -191,67 +219,74 @@
 
         /* CTA Buttons */
         .btn-pricing-primary {
-            background: #6366f1;
+            background: linear-gradient(135deg, #ff8a1e 0%, #f87200 50%, #ea580c 100%);
             color: #fff;
             border: none;
             border-radius: 10px;
             padding: 13px 20px;
             font-weight: 700;
             font-size: .95rem;
-            transition: background .2s, transform .15s;
+            box-shadow: 0 6px 18px rgba(234, 88, 12, 0.30);
+            transition: all .2s;
         }
         .btn-pricing-primary:hover {
-            background: #4f46e5;
+            background: linear-gradient(135deg, #f87200 0%, #ea580c 50%, #c2410c 100%);
             color: #fff;
+            box-shadow: 0 10px 24px rgba(234, 88, 12, 0.42);
             transform: translateY(-2px);
         }
         .btn-pricing-outline {
-            background: transparent;
-            color: #374151;
-            border: 1.5px solid #d1d5db;
+            background: #fff;
+            color: #061838;
+            border: 1.5px solid #cbd5e1;
             border-radius: 10px;
             padding: 13px 20px;
             font-weight: 600;
             font-size: .95rem;
-            transition: border-color .2s, color .2s, transform .15s;
+            transition: all .2s;
         }
         .btn-pricing-outline:hover {
-            border-color: #6366f1;
-            color: #6366f1;
+            border-color: #f87200;
+            background: #fff7ed;
+            color: #c2410c;
             transform: translateY(-2px);
         }
         .btn-pricing-gold {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: linear-gradient(135deg, #061838 0%, #003078 65%, #0a469e 100%);
             color: #fff;
             border: none;
             border-radius: 10px;
             padding: 13px 20px;
             font-weight: 700;
             font-size: .95rem;
-            transition: opacity .2s, transform .15s;
+            box-shadow: 0 6px 18px rgba(0, 48, 120, 0.25);
+            transition: all .2s;
         }
         .btn-pricing-gold:hover {
-            opacity: .9;
+            background: linear-gradient(135deg, #003078 0%, #0a469e 100%);
             color: #fff;
+            box-shadow: 0 10px 24px rgba(0, 48, 120, 0.35);
             transform: translateY(-2px);
         }
 
         /* FAQ / Garantia bar */
         .pricing-guarantee {
-            background: #f8f9fb;
-            border: 1px solid #e8eaf0;
-            border-radius: 14px;
+            background: #ffffff;
+            border: 1px solid #fed7aa;
+            border-radius: 16px;
             padding: 24px 32px;
+            box-shadow: 0 6px 20px rgba(6, 24, 56, 0.05);
         }
         .pricing-guarantee-icon {
-            width: 44px; height: 44px;
-            background: #eef2ff;
-            border-radius: 50%;
+            width: 46px; height: 46px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.3rem;
-            color: #6366f1;
+            color: #ea580c;
             flex-shrink: 0;
         }
 
@@ -328,7 +363,7 @@
             </div>
             <h1 class="pricing-hero-title mb-3">Escolha o plano ideal para você</h1>
             <p class="pricing-hero-sub mx-auto mb-0">
-                Acesso completo a todos os módulos do SGPP. Sem taxas ocultas. Cancele quando quiser.
+                Comece com <strong>{{ trial_dias_padrao }} dias grátis</strong> de acesso completo a todos os módulos do SGPP. Sem taxas ocultas. Cancele quando quiser.
             </p>
         </div>
     </header>
@@ -336,6 +371,51 @@
     <!-- CARDS DE PLANOS -->
     <section class="py-5 bg-light">
         <div class="container py-4">
+
+            {% if request.args.get('trial_expirado') %}
+            <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 mb-4 d-flex align-items-start gap-3" role="alert">
+                <i class="bi bi-clock-history fs-3 text-warning-emphasis flex-shrink-0"></i>
+                <div>
+                    <h5 class="fw-bold mb-1">Seu período de teste gratuito terminou</h5>
+                    <p class="mb-0 small">
+                        Todos os seus planejamentos, planos de aula, atividades e questões continuam salvos com segurança. Escolha um dos planos abaixo para reativar seu acesso imediatamente.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if request.args.get('checkout_cancelado') %}
+            <div class="alert alert-info border-0 shadow-sm rounded-4 p-3 mb-4 d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <span>O checkout foi cancelado. Nenhuma cobrança foi realizada — você pode escolher um plano quando preferir.</span>
+            </div>
+            {% endif %}
+
+            {% if erro_checkout %}
+            <div class="alert alert-danger border-0 shadow-sm rounded-4 p-3 mb-4 d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                <span>{{ erro_checkout }}</span>
+            </div>
+            {% endif %}
+
+            {% if assinatura_atual and assinatura_atual.status == 'active' %}
+            <div class="alert alert-success border-0 shadow-sm rounded-4 p-3 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-patch-check-fill fs-4 text-success"></i>
+                    <div>
+                        <strong>Sua assinatura está ativa:</strong> {{ assinatura_atual.plano_nome }}
+                        {% if assinatura_atual.plano_expira_em %}
+                        <span class="text-muted small ms-1">(próxima renovação em {{ assinatura_atual.plano_expira_em.strftime('%d/%m/%Y') }})</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <form method="POST" action="/assinatura/portal" class="m-0">
+                    <button type="submit" class="btn btn-success btn-sm fw-semibold px-3">
+                        <i class="bi bi-credit-card me-1"></i> Gerenciar Assinatura
+                    </button>
+                </form>
+            </div>
+            {% endif %}
 
             <div class="row g-4 justify-content-center align-items-stretch">
 
@@ -356,7 +436,17 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
                         </ul>
-                        <a href="/cadastro" class="btn btn-pricing-outline w-100">Assinar Mensal</a>
+                        {% if session.get('usuario_id') %}
+                            {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'mensal' %}
+                                <a href="/perfil" class="btn btn-outline-success w-100 fw-semibold">Plano Atual</a>
+                            {% else %}
+                                <form method="POST" action="/assinatura/checkout/mensal" class="m-0">
+                                    <button type="submit" class="btn btn-pricing-outline w-100">Assinar Mensal</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <a href="/cadastro?plano=mensal" class="btn btn-pricing-outline w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -370,9 +460,9 @@
                             <span class="pricing-value">39</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado a cada 3 meses</div>
+                        <div class="pricing-recurrence">cobrado a cada 3 meses (R$ 13,30/mês)</div>
                         <div class="pricing-economy mb-3">
-                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de ~17% vs. mensal
+                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de 33% vs. mensal
                         </div>
                         <ul class="pricing-features mb-4">
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
@@ -380,7 +470,17 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
                         </ul>
-                        <a href="/cadastro" class="btn btn-pricing-primary w-100">Assinar Trimestral</a>
+                        {% if session.get('usuario_id') %}
+                            {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'trimestral' %}
+                                <a href="/perfil" class="btn btn-success w-100 fw-semibold">Plano Atual</a>
+                            {% else %}
+                                <form method="POST" action="/assinatura/checkout/trimestral" class="m-0">
+                                    <button type="submit" class="btn btn-pricing-primary w-100">Assinar Trimestral</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <a href="/cadastro?plano=trimestral" class="btn btn-pricing-primary w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -393,9 +493,9 @@
                             <span class="pricing-value">69</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado a cada 6 meses</div>
+                        <div class="pricing-recurrence">cobrado a cada 6 meses (R$ 11,65/mês)</div>
                         <div class="pricing-economy mb-3">
-                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de ~42% vs. mensal
+                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de 41% vs. mensal
                         </div>
                         <ul class="pricing-features mb-4">
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
@@ -403,7 +503,17 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
                         </ul>
-                        <a href="/cadastro" class="btn btn-pricing-outline w-100">Assinar Semestral</a>
+                        {% if session.get('usuario_id') %}
+                            {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'semestral' %}
+                                <a href="/perfil" class="btn btn-outline-success w-100 fw-semibold">Plano Atual</a>
+                            {% else %}
+                                <form method="POST" action="/assinatura/checkout/semestral" class="m-0">
+                                    <button type="submit" class="btn btn-pricing-outline w-100">Assinar Semestral</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <a href="/cadastro?plano=semestral" class="btn btn-pricing-outline w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -417,9 +527,9 @@
                             <span class="pricing-value">129</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado por ano</div>
+                        <div class="pricing-recurrence">cobrado por ano (R$ 10,83/mês)</div>
                         <div class="pricing-economy mb-3">
-                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de ~31% vs. mensal
+                            <i class="bi bi-arrow-down-circle-fill"></i> Economia de 46% vs. mensal
                         </div>
                         <ul class="pricing-features mb-4">
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
@@ -427,7 +537,17 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
                         </ul>
-                        <a href="/cadastro" class="btn btn-pricing-gold w-100">Assinar Anual</a>
+                        {% if session.get('usuario_id') %}
+                            {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'anual' %}
+                                <a href="/perfil" class="btn btn-success w-100 fw-semibold">Plano Atual</a>
+                            {% else %}
+                                <form method="POST" action="/assinatura/checkout/anual" class="m-0">
+                                    <button type="submit" class="btn btn-pricing-gold w-100">Assinar Anual</button>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            <a href="/cadastro?plano=anual" class="btn btn-pricing-gold w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
+                        {% endif %}
                     </div>
                 </div>
 

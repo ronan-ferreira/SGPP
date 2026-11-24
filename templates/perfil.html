@@ -105,7 +105,7 @@
                     <div class="col-md-4 text-center">
                         <div class="p-3 border rounded-3 bg-light d-flex flex-column align-items-center justify-content-center" style="min-height: 140px;">
                             {% if usuario.logo_instituicao %}
-                                <img src="/static/uploads/logos/{{ usuario.logo_instituicao }}" 
+                                <img src="/media/logo/{{ usuario.logo_instituicao }}" 
                                      alt="Logotipo da Instituição" 
                                      class="img-fluid rounded" 
                                      style="max-height: 100px; object-fit: contain;">
@@ -145,5 +145,68 @@
             </form>
         </div>
     </div>
+
+    <!-- 4. Assinatura e Plano -->
+    {% if assinatura_atual %}
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold text-primary mb-3 pb-2 border-bottom d-flex align-items-center gap-2">
+                <i class="bi bi-credit-card"></i> 4. Minha Assinatura
+            </h5>
+
+            {% if request.args.get('erro_assinatura') %}
+            <div class="alert alert-warning small py-2 mb-3">
+                <i class="bi bi-exclamation-circle me-1"></i>
+                Não foi possível abrir o portal de cobrança da Stripe agora. Verifique se você já concluiu uma assinatura ou tente novamente.
+            </div>
+            {% endif %}
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="fw-bold fs-5 text-dark">{{ assinatura_atual.plano_nome }}</span>
+                        {% if assinatura_atual.status == 'active' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Ativa</span>
+                        {% elif assinatura_atual.status == 'trial' and assinatura_atual.acesso_liberado %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                Teste Grátis ({{ assinatura_atual.dias_restantes_trial }} dia{{ 's' if assinatura_atual.dias_restantes_trial != 1 else '' }})
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ assinatura_atual.status_label }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if assinatura_atual.status == 'active' and assinatura_atual.plano_expira_em %}
+                        <p class="text-muted small mb-0">
+                            Próxima renovação prevista: <strong>{{ assinatura_atual.plano_expira_em.strftime('%d/%m/%Y') }}</strong>
+                        </p>
+                    {% elif assinatura_atual.status == 'trial' and assinatura_atual.trial_fim %}
+                        <p class="text-muted small mb-0">
+                            Seu período de teste gratuito vai até <strong>{{ assinatura_atual.trial_fim.strftime('%d/%m/%Y') }}</strong>.
+                        </p>
+                    {% else %}
+                        <p class="text-muted small mb-0">
+                            Escolha um plano para liberar todos os recursos de geração e exportação do SGPP.
+                        </p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    {% if assinatura_atual.stripe_customer_id %}
+                    <form method="POST" action="/assinatura/portal" class="m-0">
+                        <button type="submit" class="btn btn-outline-primary fw-semibold">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Gerenciar na Stripe
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="/precos" class="btn btn-primary fw-semibold">
+                        <i class="bi bi-stars me-1"></i>
+                        {% if assinatura_atual.status == 'active' %}Trocar Plano{% else %}Escolher Plano{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

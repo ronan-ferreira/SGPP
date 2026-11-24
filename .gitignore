@@ -56,4 +56,7 @@ outputs/*.docx
 outputs/*.pdf
 uploads/*.pdf
 uploads/*.xlsx
+uploads/*.xls
 uploads/*.docx
+uploads/.pdf_ocr_cache/
+static/uploads/
