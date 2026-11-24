@@ -7,17 +7,17 @@
     <title>SGPP &mdash; Sistema de Gestão e Planejamento Pedagógico</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_icone_oficial.png') }}?v=1">
 
-    <!-- Google Fonts Inter -->
+    <!-- Google Fonts Inter + Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
     <!-- Bootstrap 5 & Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- CSS Customizado -->
-    <link href="{{ url_for('static', filename='css/style.css') }}?v=4" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=10" rel="stylesheet">
 </head>
 
 <body class="landing-body">
@@ -99,7 +99,7 @@
                     </div>
 
                     <h1 class="landing-hero-title mb-3">
-                        Organização e precisão no planejamento docente de ponta a ponta.
+                        Organização e precisão no <span class="landing-hero-highlight">planejamento docente</span> de ponta a ponta.
                     </h1>
 
                     <p class="landing-hero-lead mb-4">
@@ -108,7 +108,7 @@
 
                     <div class="d-flex flex-wrap gap-3 mb-5">
                         {% if session.get('usuario_id') %}
-                            <a href="/dashboard" class="btn btn-light btn-lg fw-bold text-dark px-4 py-3 d-inline-flex align-items-center gap-2 shadow-sm">
+                            <a href="/dashboard" class="btn btn-hero-accent btn-lg px-4 py-3 d-inline-flex align-items-center gap-2">
                                 <span>Ir para o Painel de Controle</span>
                                 <i class="bi bi-arrow-right"></i>
                             </a>
@@ -117,7 +117,7 @@
                                 <span>Ver Planejamentos</span>
                             </a>
                         {% else %}
-                            <a href="/login" class="btn btn-light btn-lg fw-bold text-dark px-4 py-3 d-inline-flex align-items-center gap-2 shadow-sm">
+                            <a href="/login" class="btn btn-hero-accent btn-lg px-4 py-3 d-inline-flex align-items-center gap-2">
                                 <span>Acessar o Sistema</span>
                                 <i class="bi bi-arrow-right"></i>
                             </a>
@@ -130,15 +130,15 @@
                     <!-- Métricas Institucionais Sóbrias -->
                     <div class="row g-3 g-sm-4 pt-4 border-top border-light border-opacity-10">
                         <div class="col-12 col-sm-4">
-                            <div class="landing-metric-value">Excel &amp; PDF</div>
+                            <div class="landing-metric-value"><i class="bi bi-file-earmark-check me-1"></i>Excel &amp; PDF</div>
                             <div class="landing-metric-label">Exportação oficial formatada</div>
                         </div>
                         <div class="col-12 col-sm-4 border-start-sm ps-sm-4">
-                            <div class="landing-metric-value">Bloom</div>
+                            <div class="landing-metric-value"><i class="bi bi-diagram-3 me-1"></i>Bloom</div>
                             <div class="landing-metric-label">Alinhamento de competências</div>
                         </div>
                         <div class="col-12 col-sm-4 border-start-sm ps-sm-4">
-                            <div class="landing-metric-value">Repositório</div>
+                            <div class="landing-metric-value"><i class="bi bi-archive me-1"></i>Repositório</div>
                             <div class="landing-metric-label">Banco próprio de questões</div>
                         </div>
                     </div>
@@ -470,14 +470,14 @@
 
                         <div class="d-grid gap-3">
                             {% if session.get('usuario_id') %}
-                                <a href="/dashboard" class="btn btn-light btn-lg fw-bold text-dark py-3">
+                                <a href="/dashboard" class="btn btn-hero-accent btn-lg py-3">
                                     <i class="bi bi-grid-1x2 me-2"></i> Acessar Painel Pedagógico
                                 </a>
                                 <a href="/nova_atividade" class="btn btn-outline-light py-2 fw-semibold">
                                     <i class="bi bi-plus-circle me-2"></i> Elaborar Nova Avaliação
                                 </a>
                             {% else %}
-                                <a href="/login" class="btn btn-light btn-lg fw-bold text-dark py-3">
+                                <a href="/login" class="btn btn-hero-accent btn-lg py-3">
                                     <i class="bi bi-box-arrow-in-right me-2"></i> Entrar no Sistema
                                 </a>
                                 <a href="/cadastro" class="btn btn-outline-light py-2 fw-semibold">
@@ -549,7 +549,7 @@
                         <p class="text-white-50 mb-4">
                             Cada funcionalidade do SGPP foi pensada a partir de situações reais vividas em sala de aula e nas coordenações pedagógicas. A tecnologia está a serviço da educação — não o contrário.
                         </p>
-                        <a href="/cadastro" class="btn btn-light fw-bold text-dark px-5 py-2">
+                        <a href="/cadastro" class="btn btn-hero-accent px-5 py-3">
                             <i class="bi bi-person-plus me-2"></i> Começar gratuitamente
                         </a>
                     </div>

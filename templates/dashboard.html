@@ -38,7 +38,7 @@
     <!-- Banner de Boas-Vindas e Acesso Rápido ao Tutorial -->
     <div class="tutorial-welcome-banner rounded-4 p-3 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 shadow-sm">
         <div class="d-flex align-items-center gap-3">
-            <div class="banner-tutorial-icon d-flex align-items-center justify-content-center text-primary fs-3">
+            <div class="banner-tutorial-icon d-flex align-items-center justify-content-center fs-3">
                 <i class="bi bi-mortarboard-fill"></i>
             </div>
             <div>
@@ -146,7 +146,7 @@
                             <i class="bi bi-check2-square"></i>
                         </div>
                         <span class="badge bg-white text-dark fw-bold rounded-pill px-3 py-1 shadow-sm">
-                            <i class="bi bi-patch-question text-warning me-1"></i> Avaliações
+                            <i class="bi bi-patch-question text-brand-orange me-1"></i> Avaliações
                         </span>
                     </div>
 
@@ -180,7 +180,7 @@
     <div class="card-modern p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                <i class="bi bi-folder2-open text-primary"></i> Atividades Organizadas por Curso
+                <i class="bi bi-folder2-open text-brand-orange"></i> Atividades Organizadas por Curso
             </h5>
             <a href="/atividades" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-grid-3x3-gap me-1"></i> Ver Todas ({{ total_atividades }})
@@ -192,7 +192,7 @@
                 <a href="/atividades?busca={{ c[0] }}" class="text-decoration-none">
                     <div class="p-3 rounded-3 border bg-light text-center h-100 hover-lift">
                         <h6 class="text-truncate fw-bold text-dark mb-1">{{ c[0] }}</h6>
-                        <span class="badge bg-primary text-white rounded-pill px-2 py-1 small">
+                        <span class="badge badge-subtle-orange rounded-pill px-3 py-1 small">
                             {{ c[1] }} atividade{{ 's' if c[1] != 1 else '' }}
                         </span>
                     </div>
