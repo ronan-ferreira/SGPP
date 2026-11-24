@@ -88,38 +88,85 @@
                         </h5>
                     </div>
 
-                    <div class="row g-3 mb-4">
+                    <!-- Modo de Cronograma (horas para técnico, aulas para básico/superior) -->
+                    <input type="hidden" name="tipo_cronograma" id="tipo_cronograma" value="horas">
+
+                    <!-- Bloco 1: Modelo Técnico / Carga Horária Corrida -->
+                    <div id="bloco_cronograma_tecnico" class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">
+                            <label class="form-label fw-semibold">
                                 Carga Horária Total da UC <span class="text-danger">*</span>
                             </label>
                             <div class="input-group input-group-lg">
                                 <input type="number" name="carga_horaria" id="carga_horaria" class="form-control"
-                                       placeholder="Ex: 80" min="1" required oninput="atualizarResumoAulas()">
+                                       placeholder="Ex: 80" min="1" oninput="atualizarResumoAulas()">
                                 <span class="input-group-text bg-light text-muted">Horas</span>
                             </div>
+                            <span class="text-muted small">Carga horária total da Unidade Curricular / Módulo técnico.</span>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">
+                            <label class="form-label fw-semibold">
                                 Horas por Dia (Encontro) <span class="text-danger">*</span>
                             </label>
                             <div class="input-group input-group-lg">
                                 <input type="number" name="horas_por_dia" id="horas_por_dia" class="form-control"
-                                       value="4" min="1" required oninput="atualizarResumoAulas()">
+                                       value="4" min="1" oninput="atualizarResumoAulas()">
                                 <span class="input-group-text bg-light text-muted">Horas/dia</span>
                             </div>
+                            <span class="text-muted small">Duração diária de cada encontro em horas.</span>
+                        </div>
+                    </div>
+
+                    <!-- Bloco 2: Modelo Educação Básica / Superior (Aulas por Bimestre e Duração) -->
+                    <div id="bloco_cronograma_escolar" class="row g-3 mb-3" style="display: none;">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                Duração da Aula <span class="text-danger">*</span>
+                            </label>
+                            <select name="duracao_aula" id="duracao_aula" class="form-select form-select-lg" onchange="atualizarResumoAulas()">
+                                <option value="50" selected>50 minutos (Padrão Escolar)</option>
+                                <option value="45">45 minutos</option>
+                                <option value="60">1 hora (60 minutos)</option>
+                            </select>
+                            <span class="text-muted small">Tempo de cada período de aula.</span>
                         </div>
 
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                Qtd. de Aulas no Bimestre <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="aulas_bimestre" id="aulas_bimestre" class="form-control"
+                                       placeholder="Ex: 40" min="1" value="40" oninput="atualizarResumoAulas()">
+                                <span class="input-group-text bg-light text-muted">Aulas</span>
+                            </div>
+                            <span class="text-muted small">Total de aulas previstas no bimestre/período.</span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                Qtd. de Aulas por Dia <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="aulas_por_dia" id="aulas_por_dia" class="form-control"
+                                       value="2" min="1" oninput="atualizarResumoAulas()">
+                                <span class="input-group-text bg-light text-muted">Aulas/dia</span>
+                            </div>
+                            <span class="text-muted small">Ex: 1 aula diária ou 2 aulas geminadas.</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label">
+                            <label class="form-label fw-semibold">
                                 Data de Início das Aulas <span class="text-danger">*</span>
                             </label>
                             <input type="date" name="data_inicio" id="data_inicio" class="form-control form-control-lg" required onchange="atualizarResumoAulas()">
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">
+                            <label class="form-label fw-semibold">
                                 Previsão de Término
                             </label>
                             <input type="date" name="data_fim" id="data_fim" class="form-control form-control-lg">
@@ -531,25 +578,64 @@ function atualizarTipoCurso() {
     const badge = document.getElementById('badge_modelo');
     if (!sel || !label) return;
     const val = sel.value.toUpperCase();
-    if (val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA')) {
+
+    const ehTecnico = val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA') || val.includes('QUALIF') || val.includes('APERFEIÇ');
+    
+    const blocoTecnico = document.getElementById('bloco_cronograma_tecnico');
+    const blocoEscolar = document.getElementById('bloco_cronograma_escolar');
+    const tipoCronograma = document.getElementById('tipo_cronograma');
+    const inputCH = document.getElementById('carga_horaria');
+    const inputHD = document.getElementById('horas_por_dia');
+    const inputAulasBim = document.getElementById('aulas_bimestre');
+    const inputAulasDia = document.getElementById('aulas_por_dia');
+
+    if (ehTecnico) {
+        if (blocoTecnico) blocoTecnico.style.display = 'flex';
+        if (blocoEscolar) blocoEscolar.style.display = 'none';
+        if (tipoCronograma) tipoCronograma.value = 'horas';
+        if (inputCH) inputCH.required = true;
+        if (inputHD) inputHD.required = true;
+        if (inputAulasBim) inputAulasBim.required = false;
+        if (inputAulasDia) inputAulasDia.required = false;
+
+        if (val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA')) {
+            if (badge) {
+                badge.className = 'badge badge-subtle-primary me-1';
+                badge.innerHTML = '<i class="bi bi-mortarboard-fill me-1"></i> Modelo Técnico (Padrão)';
+            }
+            label.innerText = 'modelo tecnico.xlsx (padrão caso não envie modelo próprio)';
+        } else {
+            if (badge) {
+                badge.className = 'badge badge-subtle-success me-1';
+                badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Qualificação (Padrão)';
+            }
+            label.innerText = 'modelo qualificacao.xlsx (padrão caso não envie modelo próprio)';
+        }
+    } else {
+        if (blocoTecnico) blocoTecnico.style.display = 'none';
+        if (blocoEscolar) blocoEscolar.style.display = 'flex';
+        if (tipoCronograma) tipoCronograma.value = 'aulas';
+        if (inputCH) inputCH.required = false;
+        if (inputHD) inputHD.required = false;
+        if (inputAulasBim) inputAulasBim.required = true;
+        if (inputAulasDia) inputAulasDia.required = true;
+
         if (badge) {
             badge.className = 'badge badge-subtle-primary me-1';
-            badge.innerHTML = '<i class="bi bi-mortarboard-fill me-1"></i> Modelo Técnico (Padrão)';
+            if (val.includes('FUNDAMENTAL') || val.includes('MÉDIO') || val.includes('MEDIO')) {
+                badge.innerHTML = '<i class="bi bi-journal-text me-1"></i> Modelo Educação Básica (BNCC)';
+                label.innerText = 'Planejamento estruturado por aulas e bimestres alinhado à BNCC';
+            } else if (val.includes('INFANTIL')) {
+                badge.innerHTML = '<i class="bi bi-palette-fill me-1"></i> Modelo Educação Infantil';
+                label.innerText = 'Campos de experiências e objetivos de aprendizagem';
+            } else {
+                badge.innerHTML = '<i class="bi bi-building me-1"></i> Modelo Ensino Superior';
+                label.innerText = 'Ementário e cronograma de aulas semestrais';
+            }
         }
-        label.innerText = 'modelo tecnico.xlsx (padrão caso não envie modelo próprio)';
-    } else if (val.includes('APERFEIÇ') || val.includes('APERFEIC')) {
-        if (badge) {
-            badge.className = 'badge badge-subtle-success me-1';
-            badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Aperfeiçoamento (Padrão)';
-        }
-        label.innerText = 'modelo qualificacao.xlsx (padrão caso não envie modelo próprio)';
-    } else {
-        if (badge) {
-            badge.className = 'badge badge-subtle-success me-1';
-            badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Qualificação (Padrão)';
-        }
-        label.innerText = 'modelo qualificacao.xlsx (padrão caso não envie modelo próprio)';
     }
+
+    atualizarResumoAulas();
 }
 
 // ==========================================
@@ -851,8 +937,7 @@ function calcularDataFimEstimada(dataInicioStr, totalAulas) {
 }
 
 function atualizarResumoAulas() {
-    const ch = parseInt(document.getElementById('carga_horaria').value);
-    const hd = parseInt(document.getElementById('horas_por_dia').value);
+    const tipoCronograma = document.getElementById('tipo_cronograma') ? document.getElementById('tipo_cronograma').value : 'horas';
     const resumo = document.getElementById('resumoTexto');
     const dataInicioEl = document.getElementById('data_inicio');
     const dataFimEl = document.getElementById('data_fim');
@@ -865,40 +950,69 @@ function atualizarResumoAulas() {
     const ehQuinzenal = document.getElementById('freq_quinzenal') && document.getElementById('freq_quinzenal').checked;
     const freqTxt = ehQuinzenal ? ' <span class="badge bg-warning text-dark border px-2 py-1 ms-1"><i class="bi bi-clock-history me-1"></i> Quinzenal (15 em 15 dias)</span>' : '';
 
-    if (ch && hd && hd > 0) {
-        const total = Math.ceil(ch / hd);
+    if (diasPermitidos.length === 0) {
+        resumo.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Atenção: Selecione ao menos um dia da semana para ministrar as aulas!</span>`;
+        return;
+    }
 
-        if (diasPermitidos.length === 0) {
-            resumo.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Atenção: Selecione ao menos um dia da semana para ministrar as aulas!</span>`;
+    let total = 0;
+    let detalhesCalculo = '';
+
+    if (tipoCronograma === 'aulas') {
+        const aulasBimEl = document.getElementById('aulas_bimestre');
+        const aulasDiaEl = document.getElementById('aulas_por_dia');
+        const duracaoEl = document.getElementById('duracao_aula');
+
+        const aulasBim = aulasBimEl ? parseInt(aulasBimEl.value) : 0;
+        const aulasDia = aulasDiaEl ? parseInt(aulasDiaEl.value) : 0;
+        const duracao = duracaoEl ? parseInt(duracaoEl.value) : 50;
+
+        if (aulasBim && aulasDia && aulasDia > 0) {
+            total = Math.ceil(aulasBim / aulasDia);
+            const totalHorasEst = Math.round((aulasBim * duracao) / 60);
+            detalhesCalculo = `<strong>${total} encontros</strong> calculados (${aulasBim} aulas no bimestre ÷ ${aulasDia} aula(s)/dia, com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h.`;
+        } else {
+            resumo.innerText = 'Informe a Quantidade de Aulas no Bimestre e as Aulas por Dia para calcular o cronograma.';
             return;
         }
+    } else {
+        const chEl = document.getElementById('carga_horaria');
+        const hdEl = document.getElementById('horas_por_dia');
+        const ch = chEl ? parseInt(chEl.value) : 0;
+        const hd = hdEl ? parseInt(hdEl.value) : 0;
 
-        let dataFimPrevista = null;
-        if (dataInicioEl && dataInicioEl.value) {
-            dataFimPrevista = calcularDataFimEstimada(dataInicioEl.value, total);
-            if (dataFimPrevista && dataFimEl) {
-                if (!dataFimEl.value || dataFimEl.dataset.autoCalculada === "true") {
-                    dataFimEl.value = dataFimPrevista;
-                    dataFimEl.dataset.autoCalculada = "true";
-                }
+        if (ch && hd && hd > 0) {
+            total = Math.ceil(ch / hd);
+            detalhesCalculo = `<strong>${total} encontros/aulas</strong> calculados (${ch}h totais ÷ ${hd}h/dia).`;
+        } else {
+            resumo.innerText = 'Informe a Carga Horária e as Horas/Dia para calcular a quantidade total de aulas e cronograma.';
+            return;
+        }
+    }
+
+    let dataFimPrevista = null;
+    if (dataInicioEl && dataInicioEl.value) {
+        dataFimPrevista = calcularDataFimEstimada(dataInicioEl.value, total);
+        if (dataFimPrevista && dataFimEl) {
+            if (!dataFimEl.value || dataFimEl.dataset.autoCalculada === "true") {
+                dataFimEl.value = dataFimPrevista;
+                dataFimEl.dataset.autoCalculada = "true";
             }
         }
-
-        let feriadosTxt = '';
-        if (listaFeriados.length > 0) {
-            feriadosTxt = ` | Feriados/Recessos: <strong>${listaFeriados.length} dia${listaFeriados.length > 1 ? 's' : ''}</strong>`;
-        }
-
-        let fimFormatado = '';
-        if (dataFimPrevista) {
-            const p = dataFimPrevista.split('-');
-            fimFormatado = ` | Término previsto: <strong>${p[2]}/${p[1]}/${p[0]}</strong>`;
-        }
-
-        resumo.innerHTML = `<strong>${total} encontros/aulas</strong> calculados (${ch}h totais ÷ ${hd}h/dia). Dias de aula: <strong>${diasTexto}</strong>${freqTxt}${feriadosTxt}${fimFormatado}.`;
-    } else {
-        resumo.innerText = 'Informe a Carga Horária e as Horas/Dia para calcular a quantidade total de aulas e cronograma.';
     }
+
+    let feriadosTxt = '';
+    if (listaFeriados.length > 0) {
+        feriadosTxt = ` | Feriados/Recessos: <strong>${listaFeriados.length} dia${listaFeriados.length > 1 ? 's' : ''}</strong>`;
+    }
+
+    let fimFormatado = '';
+    if (dataFimPrevista) {
+        const p = dataFimPrevista.split('-');
+        fimFormatado = ` | Término previsto: <strong>${p[2]}/${p[1]}/${p[0]}</strong>`;
+    }
+
+    resumo.innerHTML = `${detalhesCalculo} Dias de aula: <strong>${diasTexto}</strong>${freqTxt}${feriadosTxt}${fimFormatado}.`;
 }
 
 function iniciarGeracaoPlanejamento(e) {
@@ -940,6 +1054,9 @@ document.addEventListener('DOMContentLoaded', () => {
             dataFimEl.dataset.autoCalculada = "false";
         });
     }
+
+    // Inicializa a visibilidade do cronograma conforme a modalidade selecionada
+    atualizarTipoCurso();
 });
 </script>
 

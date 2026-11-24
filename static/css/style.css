@@ -597,7 +597,7 @@ h1, h2, h3, h4, h5, h6 {
     display: none;
     background: #0f2942;
     color: #cbd5e1;
-    padding: 40px 48px;
+    padding: 40px;
     flex-direction: column;
     justify-content: space-between;
 }
@@ -615,6 +615,15 @@ h1, h2, h3, h4, h5, h6 {
 .sgpp-aside .sgpp-brand { color: #ffffff; }
 .sgpp-main .sgpp-brand  { color: #0f172a; }
 
+.sgpp-aside-text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+}
+
 .sgpp-aside-text h2 {
     color: #ffffff;
     font-size: 1.75rem;
@@ -631,6 +640,20 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.6;
     max-width: 40ch;
     margin: 0;
+}
+
+.sgpp-login-logo {
+    max-width: 665px;
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sgpp-login-logo:hover {
+    opacity: 0.96;
+    transform: scale(1.015);
 }
 
 .sgpp-aside-foot {
@@ -651,7 +674,7 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     color: #64748b;
 }
 
@@ -665,11 +688,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-form {
     width: 100%;
-    max-width: 380px;
+    max-width: 420px;
 }
 
 .sgpp-form h1 {
-    font-size: 1.5rem;
+    font-size: 1.7rem;
     font-weight: 600;
     letter-spacing: -0.02em;
     margin-bottom: 6px;
@@ -677,7 +700,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-sub {
     color: #64748b;
-    font-size: 0.925rem;
+    font-size: 1rem;
     margin-bottom: 28px;
 }
 
@@ -690,9 +713,13 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 6px;
 }
 
+.sgpp-label-row .sgpp-link {
+    font-size: 0.88rem;
+}
+
 .sgpp-label {
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.935rem;
     font-weight: 500;
     color: #334155;
     margin-bottom: 6px;
@@ -702,11 +729,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-input {
     width: 100%;
-    height: 44px;
+    height: 48px;
     border: 1px solid #d5dbe3;
     border-radius: 8px;
-    padding: 0 12px;
-    font-size: 0.95rem;
+    padding: 0 14px;
+    font-size: 1.02rem;
     color: #0f172a;
     background: #ffffff;
     transition: border-color .15s, box-shadow .15s;
@@ -731,7 +758,7 @@ h1, h2, h3, h4, h5, h6 {
     border: 0;
     background: transparent;
     color: #64748b;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 500;
     padding: 6px 8px;
     border-radius: 6px;
@@ -742,13 +769,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-btn {
     width: 100%;
-    height: 44px;
+    height: 48px;
     border: 0;
     border-radius: 8px;
     background: #0f2942;
     color: #ffffff;
-    font-size: 0.95rem;
-    font-weight: 500;
+    font-size: 1.02rem;
+    font-weight: 600;
     cursor: pointer;
     transition: background .15s;
     margin-top: 6px;
@@ -767,7 +794,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-muted-link {
     color: #64748b;
-    font-size: 0.85rem;
+    font-size: 0.92rem;
     text-decoration: none;
 }
 
@@ -775,8 +802,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-alert {
     border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 0.875rem;
+    padding: 12px 14px;
+    font-size: 0.925rem;
     margin-bottom: 20px;
     border: 1px solid;
 }
@@ -787,7 +814,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .sgpp-foot {
     margin-top: 24px;
-    font-size: 0.875rem;
+    font-size: 0.925rem;
     color: #64748b;
     text-align: center;
 }
@@ -829,7 +856,7 @@ h1, h2, h3, h4, h5, h6 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px 12px;
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     color: #94a3b8;
 }
 
@@ -843,7 +870,7 @@ h1, h2, h3, h4, h5, h6 {
 .sgpp-rules li.ok::before { content: "✓"; }
 
 .sgpp-hint {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     margin-top: 6px;
     min-height: 1em;
 }
@@ -882,9 +909,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (min-width: 992px) {
-    .sgpp-auth { grid-template-columns: 5fr 7fr; }
+    .sgpp-auth { grid-template-columns: 1fr 1fr; }
     .sgpp-aside { display: flex; }
-    .sgpp-main { padding: 32px 48px; }
+    .sgpp-main { padding: 40px 48px; }
     .sgpp-main-top { justify-content: flex-end; }
     .sgpp-main-top .sgpp-brand { display: none; }
 }

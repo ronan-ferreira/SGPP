@@ -2,7 +2,7 @@
 SGPP — SISTEMA DE GESTAO E PLANEJAMENTO PEDAGOGICO UNIVERSAL
 RELATORIO DE EVOLUCAO, ARQUITETURA E REGISTRO DE ALTERACOES
 Arquivo de Acompanhamento Continuo (Historico de Desenvolvimento)
-Ultima Atualizacao: 2026-11-23 11:17
+Ultima Atualizacao: 2026-11-24 11:05
 ================================================================================
 
 [OBJETIVO DESTE ARQUIVO]
@@ -159,10 +159,50 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
    - A rota '/planejamento_docente' recupera a logomarca do perfil da sessao ativa e a
      encaminha automaticamente para os geradores de documentos.
 
+--- [2026-11-24] Fase 5: Cronograma Adaptativo por Segmento e Repositorio Individual por Usuario ---
+1. Cronograma & Carga Horaria Dinamica por Segmento de Ensino ('planejamento_docente.html' e 'app.py'):
+   - Para Ensino Tecnico e Qualificacao Profissional:
+     * Mantido o modelo operacional consagrado em horas corridas: "Carga Horaria Total da UC"
+       (ex: 80h, 120h) e "Horas por Dia / Encontro" (ex: 4h/dia).
+   - Para Educacao Basica (Educacao Infantil, Ensino Fundamental, Ensino Medio) e Ensino Superior:
+     * Novo seletor de "Duracao da Aula" com opcoes: 50 minutos (padrao escolas), 45 minutos e 1 hora (60 min).
+     * Substituicao do campo "Carga Horaria" por "Quantidade de Aulas no Bimestre / Periodo" (ex: 40 aulas).
+     * Substituicao de "Horas por Dia" por "Quantidade de Aulas por Dia / Encontro" (ex: 1 aula, 2 aulas geminadas).
+     * Preservacao integrada dos seletores de dias da semana (Seg a Sex, Seg a Sab, etc.),
+       periodicidade semanal/quinzenal e gerenciador de feriados e recessos escolares.
+     * Calculo em tempo real no front-end e tratamento equivalente no backend para geracao do cronograma.
+   - Implementacao concluida no front-end (JavaScript + HTML) com alternancia automatica ao selecionar
+     segmento/nivel no seletor 'modalidade'. BLOCOS 'bloco_cronograma_tecnico' e 'bloco_cronograma_escolar'
+     controlados pela funcao atualizarTipoCurso().
+2. Isolamento Multi-inquilino do Repositorio de Questoes ('repositorio_service.py', 'app.py' e 'repositorio.html'):
+   - O Repositorio de Atividades e Questoes deixa de ser global compartilhado entre todos os docentes
+     e passa a ser individual/privado por usuario ('usuario_id').
+   - Cada professor visualiza e administra apenas seu proprio acervo (questoes manuais e questoes salvas por IA).
+   - Listagem (/repositorio), contadores estatisticos e buscas filtradas por 'usuario_id = session["usuario_id"]'.
+   - Rotas de visualizacao, edicao, exclusao e exportacao (Word/PDF) protegidas por propriedade do usuario.
+   - Gerador de atividades com fonte 'repositorio' restrito estritamente ao banco pessoal do docente logado.
+   - ALTERACOES IMPLEMENTADAS EM 2026-11-24:
+     * app.py /repositorio: Todas as 5 queries SQL (total_itens, total_professor, total_ia, total_filtrado
+       e listagem principal) agora incluem 'WHERE usuario_id = %s' obrigatorio.
+     * app.py /repositorio/editar: Verificacao de propriedade adicionada (item["usuario_id"] == session["usuario_id"]).
+     * app.py /repositorio/visualizar: Idem — redireciona para /repositorio se o item nao pertencer ao usuario.
+     * app.py /repositorio/pdf e /repositorio/word: Idem — exportacao protegida por propriedade.
+     * repositorio_service.py adicionar_ao_repositorio: Checagem de duplicidade agora por escopo do usuario
+       (WHERE enunciado = %s AND usuario_id = %s), permitindo questoes identicas em repositorios distintos.
+     * repositorio_service.py salvar_questoes_ia_no_repositorio: Idem — duplicidade por escopo do usuario.
+     * repositorio_service.py atualizar_no_repositorio: Clausula WHERE inclui 'AND usuario_id = %s'
+       para impedir atualizacao de itens de outros usuarios.
+     * repositorio_service.py buscar_questoes_repositorio: Filtro 'WHERE usuario_id = %s' obrigatorio
+       substituiu priorizacao por ORDER BY (que retornava questoes de todos os usuarios).
+     * repositorio.html: Textos atualizados de "Banco compartilhado" para "Repositorio pessoal",
+       "Total no Repositorio" para "Meu Repositorio", "Criadas pelo Professor" para "Criadas por Voce".
+
 ================================================================================
-STATUS ATUAL: TODAS AS 4 FASES DE TRANSFORMACAO CONCLUIDAS COM SUCESSO!
+STATUS ATUAL: FASE 5 CONCLUIDA
 O SGPP agora atende perfeitamente:
 - Docentes do SENAI (Plano de curso, matrizes SAEP e modelos tecnicos)
 - Docentes de Escolas Publicas e Particulares (Educacao Infantil, Fundamental e Medio - BNCC)
 - Docentes do Ensino Superior / Faculdades (Ementa, ementario e bibliografia)
+- Cronogramas adaptativos por aulas/bimestre (educacao basica/superior) ou por horas corridas (tecnico)
+- Repositorios individuais e privados por docente (isolamento multi-inquilino completo)
 ================================================================================

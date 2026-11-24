@@ -103,11 +103,17 @@ def adicionar_ao_repositorio(curso, disciplina, conteudo, dificuldade, tipo,
     """
     conn, cursor = get_cursor()
     try:
-        # Verifica duplicidade
-        cursor.execute(
-            "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) LIMIT 1",
-            (enunciado.strip(),)
-        )
+        # Verifica duplicidade (escopo do próprio usuário)
+        if usuario_id:
+            cursor.execute(
+                "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) AND usuario_id = %s LIMIT 1",
+                (enunciado.strip(), usuario_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) LIMIT 1",
+                (enunciado.strip(),)
+            )
         existente = cursor.fetchone()
         if existente:
             return existente[0]
@@ -141,37 +147,67 @@ def adicionar_ao_repositorio(curso, disciplina, conteudo, dificuldade, tipo,
 
 
 def atualizar_no_repositorio(item_id, curso, disciplina, conteudo, dificuldade, tipo,
-                             enunciado, alternativas="", resposta_correta=""):
+                             enunciado, alternativas="", resposta_correta="",
+                             usuario_id=None):
     """
     Atualiza uma questão/atividade existente no repositório.
+    Se usuario_id informado, garante que pertença ao professor.
     """
     conn, cursor = get_cursor()
     try:
-        cursor.execute(
-            """
-            UPDATE repositorio_atividades
-            SET curso = %s,
-                disciplina = %s,
-                conteudo = %s,
-                dificuldade = %s,
-                tipo = %s,
-                enunciado = %s,
-                alternativas = %s,
-                resposta_correta = %s
-            WHERE id = %s
-            """,
-            (
-                curso.strip(),
-                disciplina.strip(),
-                conteudo.strip(),
-                dificuldade.strip().lower(),
-                tipo.strip().lower(),
-                enunciado.strip(),
-                (alternativas or "").strip(),
-                (resposta_correta or "").strip(),
-                item_id
+        if usuario_id:
+            cursor.execute(
+                """
+                UPDATE repositorio_atividades
+                SET curso = %s,
+                    disciplina = %s,
+                    conteudo = %s,
+                    dificuldade = %s,
+                    tipo = %s,
+                    enunciado = %s,
+                    alternativas = %s,
+                    resposta_correta = %s
+                WHERE id = %s AND usuario_id = %s
+                """,
+                (
+                    curso.strip(),
+                    disciplina.strip(),
+                    conteudo.strip(),
+                    dificuldade.strip().lower(),
+                    tipo.strip().lower(),
+                    enunciado.strip(),
+                    (alternativas or "").strip(),
+                    (resposta_correta or "").strip(),
+                    item_id,
+                    usuario_id
+                )
             )
-        )
+        else:
+            cursor.execute(
+                """
+                UPDATE repositorio_atividades
+                SET curso = %s,
+                    disciplina = %s,
+                    conteudo = %s,
+                    dificuldade = %s,
+                    tipo = %s,
+                    enunciado = %s,
+                    alternativas = %s,
+                    resposta_correta = %s
+                WHERE id = %s
+                """,
+                (
+                    curso.strip(),
+                    disciplina.strip(),
+                    conteudo.strip(),
+                    dificuldade.strip().lower(),
+                    tipo.strip().lower(),
+                    enunciado.strip(),
+                    (alternativas or "").strip(),
+                    (resposta_correta or "").strip(),
+                    item_id
+                )
+            )
         conn.commit()
         return True
     finally:
@@ -250,11 +286,17 @@ def salvar_questoes_ia_no_repositorio(texto_atividade, curso, disciplina, conteu
             enunciado_q = (q["enunciado"] or "").strip()
             if not enunciado_q:
                 continue
-            # Verifica duplicidade pelo enunciado (case-insensitive)
-            cursor.execute(
-                "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) LIMIT 1",
-                (enunciado_q,)
-            )
+            # Verifica duplicidade pelo enunciado (case-insensitive, escopo do usuário)
+            if usuario_id:
+                cursor.execute(
+                    "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) AND usuario_id = %s LIMIT 1",
+                    (enunciado_q, usuario_id)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id FROM repositorio_atividades WHERE LOWER(TRIM(enunciado)) = LOWER(TRIM(%s)) LIMIT 1",
+                    (enunciado_q,)
+                )
             if cursor.fetchone():
                 duplicadas += 1
                 continue
@@ -294,12 +336,17 @@ def buscar_questoes_repositorio(curso=None, disciplina=None, conteudo=None,
                                 dificuldade=None, tipo=None, usuario_id=None,
                                 limite=20, apenas_professor=False, autoria=None):
     """
-    Busca questões no repositório usando critérios contextuais.
-    Prioriza questões do próprio professor, seguidas de questões do repositório em geral.
+    Busca questões no repositório pessoal do usuário usando critérios contextuais.
+    Filtra exclusivamente por usuario_id para isolamento multi-inquilino.
     Suporta filtros por formato (objetiva, discursiva, prática, mista) e autoria (professor, ia, mista).
     """
     condicoes = []
     params = []
+
+    # Filtro de isolamento: somente questões do próprio usuário
+    if usuario_id:
+        condicoes.append("usuario_id = %s")
+        params.append(int(usuario_id))
 
     # Filtro de autoria / origem
     if autoria:
@@ -345,9 +392,6 @@ def buscar_questoes_repositorio(curso=None, disciplina=None, conteudo=None,
     # Ordenação com pontuação:
     order_clauses = []
     order_params = []
-    if usuario_id:
-        order_clauses.append("CASE WHEN usuario_id = %s THEN 0 ELSE 1 END")
-        order_params.append(int(usuario_id))
     order_clauses.append("CASE WHEN origem = 'professor' THEN 0 ELSE 1 END")
     if dificuldade:
         order_clauses.append("CASE WHEN dificuldade ILIKE %s THEN 0 ELSE 1 END")

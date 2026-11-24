@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 130" fill="none">
+  <defs>
+    <linearGradient id="m1_h_cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="m1_h_emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ícone Lateral -->
+  <g transform="translate(10, 10) scale(0.92)">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="m1_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="m1_cyan_blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="m1_emerald_cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="m1_indigo_blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <filter id="m1_glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0284C7" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Container Card -->
+  <rect x="8" y="8" width="104" height="104" rx="26" fill="url(#m1_bg)"/>
+  <rect x="8" y="8" width="104" height="104" rx="26" stroke="#38BDF8" stroke-opacity="0.25" stroke-width="1.5"/>
+
+  <!-- Símbolo Isométrico: Camadas de Conhecimento / Livro Tecnológico Hexagonal -->
+  <g filter="url(#m1_glow)">
+    <!-- Camada Base / Esquerda (Fundamentos) -->
+    <path d="M28 44 C28 40 32 36 36 36 L58 44 V82 C58 84 55 86 52 85 L32 76 C29 75 28 72 28 69 Z" fill="url(#m1_indigo_blue)"/>
+    <!-- Camada Superior / Direita (Evolução / Bloom) -->
+    <path d="M92 44 C92 40 88 36 84 36 L62 44 V82 C62 84 65 86 68 85 L88 76 C91 75 92 72 92 69 Z" fill="url(#m1_cyan_blue)"/>
+    <!-- Prisma Central Ascendente (Inteligência & Planejamento) -->
+    <path d="M60 26 L74 38 L60 48 L46 38 Z" fill="url(#m1_emerald_cyan)"/>
+  </g>
+  
+  <!-- Detalhes de Grade / Linhas Pedagógicas -->
+  <line x1="38" y1="52" x2="50" y2="56" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="38" y1="62" x2="48" y2="65.5" stroke="#FFFFFF" stroke-opacity="0.5" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="76" cy="56" r="3" fill="#FFFFFF" fill-opacity="0.9"/>
+  <line x1="72" y1="66" x2="84" y2="62" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <!-- Núcleo de Conexão -->
+  <circle cx="60" cy="37" r="2.5" fill="#FFFFFF"/>
+</svg>
+  </g>
+
+  <!-- Textos do Modelo 1 -->
+  <g transform="translate(142, 30)">
+    <!-- Nome Principal -->
+    <text x="0" y="42" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="44" font-weight="800" fill="#0F172A" letter-spacing="-1.5">SGPP</text>
+    
+    <!-- Tagline Badge -->
+    <rect x="144" y="16" width="168" height="26" rx="13" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+    <circle cx="156" cy="29" r="4" fill="#0284C7"/>
+    <text x="166" y="33" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="11" font-weight="700" fill="#0369A1" letter-spacing="0.5">INTELIGÊNCIA DOCENTE</text>
+
+    <!-- Divisor e Subtítulos -->
+    <text x="0" y="68" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="14.5" font-weight="600" fill="#1E293B" letter-spacing="-0.2">Sistema de Gestão e Planejamento Pedagógico</text>
+    <text x="0" y="86" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748B">Planos de Ensino • BNCC &amp; Técnico • Taxonomia de Bloom</text>
+  </g>
+</svg>

@@ -694,10 +694,13 @@ def listar_repositorio():
     por_pagina = 15
     offset = (pagina - 1) * por_pagina
 
+    usuario_id = session["usuario_id"]
+
     conn, cursor = get_cursor()
     try:
-        condicoes = []
-        params = []
+        # Filtro base: somente itens do próprio usuário (repositório individual)
+        condicoes = ["usuario_id = %s"]
+        params = [usuario_id]
 
         if busca:
             condicoes.append("(enunciado ILIKE %s OR curso ILIKE %s OR disciplina ILIKE %s OR conteudo ILIKE %s)")
@@ -716,16 +719,16 @@ def listar_repositorio():
             condicoes.append("dificuldade ILIKE %s")
             params.append(f"%{dificuldade}%")
 
-        where_sql = ("WHERE " + " AND ".join(condicoes)) if condicoes else ""
+        where_sql = "WHERE " + " AND ".join(condicoes)
 
-        # Estatísticas do repositório
-        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades")
+        # Estatísticas do repositório (somente do usuário logado)
+        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades WHERE usuario_id = %s", (usuario_id,))
         total_itens = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades WHERE origem = 'professor'")
+        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades WHERE usuario_id = %s AND origem = 'professor'", (usuario_id,))
         total_professor = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades WHERE origem = 'ia'")
+        cursor.execute("SELECT COUNT(*) FROM repositorio_atividades WHERE usuario_id = %s AND origem = 'ia'", (usuario_id,))
         total_ia = cursor.fetchone()[0]
 
         # Total filtrado para paginação
@@ -826,7 +829,7 @@ def repositorio_editar(id):
         return redirect("/login")
 
     item = obter_item_repositorio(id)
-    if not item:
+    if not item or item.get("usuario_id") != session["usuario_id"]:
         return redirect("/repositorio")
 
     if request.method == "POST":
@@ -848,7 +851,8 @@ def repositorio_editar(id):
             tipo=tipo,
             enunciado=enunciado,
             alternativas=alternativas,
-            resposta_correta=resposta_correta
+            resposta_correta=resposta_correta,
+            usuario_id=session["usuario_id"]
         )
 
         return redirect("/repositorio")
@@ -876,7 +880,7 @@ def repositorio_visualizar(id):
         return redirect("/login")
 
     item = obter_item_repositorio(id)
-    if not item:
+    if not item or item.get("usuario_id") != session["usuario_id"]:
         return redirect("/repositorio")
 
     return render_template("visualizar_atividade_repositorio.html", item=item)
@@ -888,7 +892,7 @@ def repositorio_pdf(id):
         return redirect("/login")
 
     item = obter_item_repositorio(id)
-    if not item:
+    if not item or item.get("usuario_id") != session["usuario_id"]:
         return redirect("/repositorio")
 
     dados_cab = {
@@ -960,7 +964,7 @@ def repositorio_word(id):
         return redirect("/login")
 
     item = obter_item_repositorio(id)
-    if not item:
+    if not item or item.get("usuario_id") != session["usuario_id"]:
         return redirect("/repositorio")
 
     dados_cab = {
@@ -2417,12 +2421,25 @@ def planejamento_docente():
         codigo_turma       = request.form.get("codigo_turma", "TEC.2026.1")
         modalidade         = request.form.get("modalidade", "HABILITAÇÃO TÉCNICA")
         unidade_escolar    = request.form.get("unidade_escolar", "")
-        carga_horaria      = int(request.form["carga_horaria"])
-        horas_por_dia      = int(request.form["horas_por_dia"])
+        tipo_cronograma    = request.form.get("tipo_cronograma", "horas")
+        duracao_aula       = int(request.form.get("duracao_aula", 50) or 50)
         data_inicio_str    = request.form.get("data_inicio", "")
         data_fim_str       = request.form.get("data_fim", "")
 
-        total_aulas = -(-carga_horaria // horas_por_dia)  # Divisão com teto
+        if tipo_cronograma == "aulas":
+            aulas_bimestre = int(request.form.get("aulas_bimestre") or 40)
+            aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
+            if aulas_por_dia <= 0:
+                aulas_por_dia = 1
+            total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
+            carga_horaria = int(round((aulas_bimestre * duracao_aula) / 60)) or aulas_bimestre
+            horas_por_dia = max(1, int(round((aulas_por_dia * duracao_aula) / 60))) or 1
+        else:
+            carga_horaria      = int(request.form.get("carga_horaria") or 80)
+            horas_por_dia      = int(request.form.get("horas_por_dia") or 4)
+            if horas_por_dia <= 0:
+                horas_por_dia = 1
+            total_aulas = -(-carga_horaria // horas_por_dia)  # Divisão com teto
 
         print("=" * 60)
         print(f"[INFO] GERANDO PLANEJAMENTO DOCENTE")

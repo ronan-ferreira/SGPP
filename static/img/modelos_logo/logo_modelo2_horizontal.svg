@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 130" fill="none">
+  <!-- Ícone Lateral -->
+  <g transform="translate(10, 10) scale(0.92)">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="m2_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F2942"/>
+      <stop offset="100%" stop-color="#081829"/>
+    </linearGradient>
+    <linearGradient id="m2_blue_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="m2_gold_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Container Hexágono Suave / Base Institucional -->
+  <rect x="8" y="8" width="104" height="104" rx="28" fill="url(#m2_bg)"/>
+  <rect x="8" y="8" width="104" height="104" rx="28" stroke="#3B82F6" stroke-opacity="0.3" stroke-width="1.5"/>
+
+  <!-- Símbolo: O Infinito Pedagógico (Nexo entre Planejar, Ensinar e Avaliar) -->
+  <!-- Folha / Asa Esquerda (Planejamento) -->
+  <path d="M30 68 C24 54 32 38 46 36 C58 34 60 48 60 56 C60 48 62 34 74 36 C88 38 96 54 90 68 C84 82 72 84 60 74 C48 84 36 82 30 68 Z" 
+        stroke="url(#m2_blue_grad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        
+  <!-- Livro Central Estilizado Branco -->
+  <path d="M44 48 C52 48 58 52 60 55 C62 52 68 48 76 48 V72 C68 72 62 76 60 78 C58 76 52 72 44 72 Z" fill="#FFFFFF"/>
+  
+  <!-- Check Mark de Conformidade Curricular em Ouro/Âmbar -->
+  <path d="M54 62 L58 66 L68 54" stroke="url(#m2_gold_grad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Pontos de ancoragem curricular -->
+  <circle cx="36" cy="48" r="3.5" fill="#60A5FA"/>
+  <circle cx="84" cy="48" r="3.5" fill="#FBBF24"/>
+</svg>
+  </g>
+
+  <!-- Textos do Modelo 2 -->
+  <g transform="translate(142, 32)">
+    <!-- Marca Principal -->
+    <text x="0" y="42" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="44" font-weight="900" fill="#0F2942" letter-spacing="-1.8">SGPP</text>
+    
+    <!-- Divisor Vertical Institucional -->
+    <line x1="138" y1="12" x2="138" y2="44" stroke="#CBD5E1" stroke-width="2.5"/>
+
+    <!-- Rótulo Institucional -->
+    <text x="154" y="27" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#1D4ED8" letter-spacing="1.2">GESTÃO PEDAGÓGICA</text>
+    <text x="154" y="43" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="600" fill="#D97706" letter-spacing="0.4">CONFORMIDADE &amp; EFICIÊNCIA</text>
+
+    <!-- Subtítulo Oficial -->
+    <text x="0" y="69" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" fill="#1E293B" letter-spacing="-0.2">Sistema de Gestão e Planejamento Pedagógico</text>
+    <text x="0" y="87" font-family="'Inter', system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748B">Da Matriz Curricular à Sala de Aula com Agilidade</text>
+  </g>
+</svg>
