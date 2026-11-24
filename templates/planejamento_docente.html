@@ -133,7 +133,7 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">
+                            <label class="form-label fw-semibold" id="label_aulas_periodo">
                                 Qtd. de Aulas no Bimestre <span class="text-danger">*</span>
                             </label>
                             <div class="input-group input-group-lg">
@@ -141,7 +141,7 @@
                                        placeholder="Ex: 40" min="1" value="40" oninput="atualizarResumoAulas()">
                                 <span class="input-group-text bg-light text-muted">Aulas</span>
                             </div>
-                            <span class="text-muted small">Total de aulas previstas no bimestre/período.</span>
+                            <span class="text-muted small" id="dica_aulas_periodo">Total de aulas previstas no bimestre.</span>
                         </div>
 
                         <div class="col-md-4">
@@ -620,6 +620,26 @@ function atualizarTipoCurso() {
         if (inputAulasBim) inputAulasBim.required = true;
         if (inputAulasDia) inputAulasDia.required = true;
 
+        const ehSuperior = val.includes('SUPERIOR') || val.includes('GRADUAÇÃO') || val.includes('GRADUACAO') || val.includes('FACULDADE');
+        const labelAulasPeriodo = document.getElementById('label_aulas_periodo');
+        const dicaAulasPeriodo = document.getElementById('dica_aulas_periodo');
+
+        if (ehSuperior) {
+            if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Semestre <span class="text-danger">*</span>';
+            if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Total de aulas previstas no semestre letivo.';
+            if (inputAulasBim && (!inputAulasBim.value || inputAulasBim.value == '40')) {
+                inputAulasBim.value = '80';
+                inputAulasBim.placeholder = 'Ex: 80';
+            }
+        } else {
+            if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Bimestre <span class="text-danger">*</span>';
+            if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Total de aulas previstas no bimestre.';
+            if (inputAulasBim && inputAulasBim.value == '80') {
+                inputAulasBim.value = '40';
+                inputAulasBim.placeholder = 'Ex: 40';
+            }
+        }
+
         if (badge) {
             badge.className = 'badge badge-subtle-primary me-1';
             if (val.includes('FUNDAMENTAL') || val.includes('MÉDIO') || val.includes('MEDIO')) {
@@ -970,9 +990,15 @@ function atualizarResumoAulas() {
         if (aulasBim && aulasDia && aulasDia > 0) {
             total = Math.ceil(aulasBim / aulasDia);
             const totalHorasEst = Math.round((aulasBim * duracao) / 60);
-            detalhesCalculo = `<strong>${total} encontros</strong> calculados (${aulasBim} aulas no bimestre ÷ ${aulasDia} aula(s)/dia, com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h.`;
+            const selModalidade = document.getElementById('modalidade');
+            const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
+            const periodoNome = ehSuperior ? 'no semestre' : 'no bimestre';
+            detalhesCalculo = `<strong>${total} encontros</strong> calculados (${aulasBim} aulas ${periodoNome} ÷ ${aulasDia} aula(s)/dia, com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h.`;
         } else {
-            resumo.innerText = 'Informe a Quantidade de Aulas no Bimestre e as Aulas por Dia para calcular o cronograma.';
+            const selModalidade = document.getElementById('modalidade');
+            const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
+            const periodoNome = ehSuperior ? 'no Semestre' : 'no Bimestre';
+            resumo.innerText = `Informe a Quantidade de Aulas ${periodoNome} e as Aulas por Dia para calcular o cronograma.`;
             return;
         }
     } else {
