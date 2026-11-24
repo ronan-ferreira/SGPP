@@ -398,12 +398,12 @@
                                         </h6>
                                         <p class="text-muted small mb-0">
                                             Se a sua escola, faculdade ou instituição de ensino possui um modelo específico de planejamento em <strong>Word (.docx)</strong> ou <strong>Excel (.xlsx / .xls)</strong>, envie-o aqui.<br>
-                                            <strong>O sistema lerá e preencherá diretamente o seu arquivo!</strong> Caso não envie nenhum modelo, o sistema gerará automaticamente o documento oficial padrão em <strong>Word (.docx)</strong>.
+                                            <strong>O sistema lerá e preencherá diretamente o seu arquivo!</strong> Caso não envie modelo, o sistema aplicará o modelo padrão correspondente: <strong>Excel (.xlsx)</strong> para Ensino Técnico/Qualificação ou <strong>Word (.docx)</strong> para Educação Básica e Ensino Superior.
                                         </p>
                                     </div>
                                     <div id="badgeStatusModelo" class="text-md-end flex-shrink-0">
-                                        <span class="badge bg-primary-subtle text-primary border px-3 py-2 small">
-                                            <i class="bi bi-file-earmark-word me-1"></i> Documento Word (.docx) padrão
+                                        <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 small" id="badgeStatusTexto">
+                                            <i class="bi bi-gear me-1"></i> Modelo padrão do sistema
                                         </span>
                                     </div>
                                 </div>
@@ -564,9 +564,30 @@ function verificarUploadModelo(input) {
             </span>
         `;
     } else {
+        atualizarBadgeModeloPadrao();
+    }
+}
+
+function atualizarBadgeModeloPadrao() {
+    const input = document.getElementById('arquivo_modelo');
+    if (input && input.files && input.files.length > 0) return; // Se já subiu arquivo, mantém o badge do arquivo
+    const badge = document.getElementById('badgeStatusModelo');
+    const sel = document.getElementById('modalidade');
+    if (!badge || !sel) return;
+
+    const val = sel.value.toUpperCase();
+    const ehTecnico = val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA') || val.includes('QUALIF') || val.includes('APERFEIÇ');
+
+    if (ehTecnico) {
+        badge.innerHTML = `
+            <span class="badge bg-success-subtle text-success border px-3 py-2 small">
+                <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel (.xlsx) padrão
+            </span>
+        `;
+    } else {
         badge.innerHTML = `
             <span class="badge bg-primary-subtle text-primary border px-3 py-2 small">
-                <i class="bi bi-file-earmark-word me-1"></i> Documento Word (.docx) padrão
+                <i class="bi bi-file-earmark-word me-1"></i> Modelo Word (.docx) padrão
             </span>
         `;
     }
@@ -603,13 +624,13 @@ function atualizarTipoCurso() {
                 badge.className = 'badge badge-subtle-primary me-1';
                 badge.innerHTML = '<i class="bi bi-mortarboard-fill me-1"></i> Ensino Técnico';
             }
-            label.innerText = 'Documento estruturado com capacidades e conhecimentos técnicos';
+            label.innerText = 'Preenchimento oficial no modelo técnico em Excel (.xlsx)';
         } else {
             if (badge) {
                 badge.className = 'badge badge-subtle-success me-1';
                 badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Qualificação Profissional';
             }
-            label.innerText = 'Documento estruturado para formação profissionalizante';
+            label.innerText = 'Preenchimento oficial no modelo qualificação em Excel (.xlsx)';
         }
     } else {
         if (blocoTecnico) blocoTecnico.style.display = 'none';
@@ -644,17 +665,18 @@ function atualizarTipoCurso() {
             badge.className = 'badge badge-subtle-primary me-1';
             if (val.includes('FUNDAMENTAL') || val.includes('MÉDIO') || val.includes('MEDIO')) {
                 badge.innerHTML = '<i class="bi bi-journal-text me-1"></i> Modelo Educação Básica (BNCC)';
-                label.innerText = 'Planejamento estruturado por aulas e bimestres alinhado à BNCC';
+                label.innerText = 'Planejamento estruturado por aulas e bimestres em Word (.docx)';
             } else if (val.includes('INFANTIL')) {
                 badge.innerHTML = '<i class="bi bi-palette-fill me-1"></i> Modelo Educação Infantil';
-                label.innerText = 'Campos de experiências e objetivos de aprendizagem';
+                label.innerText = 'Campos de experiências e objetivos de aprendizagem em Word (.docx)';
             } else {
                 badge.innerHTML = '<i class="bi bi-building me-1"></i> Modelo Ensino Superior';
-                label.innerText = 'Ementário e cronograma de aulas semestrais';
+                label.innerText = 'Ementário e cronograma de aulas semestrais em Word (.docx)';
             }
         }
     }
 
+    atualizarBadgeModeloPadrao();
     atualizarResumoAulas();
 }
 
