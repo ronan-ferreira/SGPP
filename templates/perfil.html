@@ -69,7 +69,7 @@
                         <label class="form-label fw-semibold" for="segmento">Segmento de Ensino Principal</label>
                         <select name="segmento" id="segmento" class="form-select" required>
                             <option value="tecnico" {% if usuario.segmento == 'tecnico' %}selected{% endif %}>
-                                🛠️ Ensino Técnico / Profissionalizante (SENAI, ETEC, IFs)
+                                🛠️ Ensino Técnico / Profissionalizante
                             </option>
                             <option value="fundamental" {% if usuario.segmento == 'fundamental' %}selected{% endif %}>
                                 📚 Ensino Fundamental I e II (BNCC - Pública / Particular)
@@ -90,7 +90,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" for="instituicao">Nome da sua Escola / Instituição</label>
                         <input type="text" name="instituicao" id="instituicao" class="form-control"
-                               placeholder="Ex: E.E. Santos Dumont, Colégio Dom Bosco, SENAI..."
+                               placeholder="Ex: E.E. Santos Dumont, Colégio Dom Bosco, Instituto Técnico..."
                                value="{{ usuario.instituicao or '' }}">
                         <small class="text-muted">Aparecerá automaticamente no cabeçalho das atividades e documentos impressos.</small>
                     </div>

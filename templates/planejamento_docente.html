@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block titulo %}Planejamento Docente (Excel) &mdash; SGPP{% endblock %}
+{% block titulo %}Planejamento Docente &mdash; SGPP{% endblock %}
 
 {% block conteudo %}
 
@@ -12,10 +12,10 @@
             <div class="card-header-modern bg-white d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div class="d-flex align-items-center gap-3">
                     <div class="brand-icon-wrapper flex-shrink-0" style="width: 46px; height: 46px; font-size: 1.4rem;">
-                        <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                        <i class="bi bi-file-earmark-text-fill"></i>
                     </div>
                     <div>
-                        <h4 class="mb-0 fw-bold">Gerador de Planejamento Docente (Excel)</h4>
+                        <h4 class="mb-0 fw-bold">Gerador de Planejamento Docente</h4>
                         <span class="text-muted small">Preenchimento automático do modelo oficial com <strong>Taxonomia de Bloom</strong> e divisão por carga horária</span>
                     </div>
                 </div>
@@ -398,12 +398,12 @@
                                         </h6>
                                         <p class="text-muted small mb-0">
                                             Se a sua escola, faculdade ou instituição de ensino possui um modelo específico de planejamento em <strong>Word (.docx)</strong> ou <strong>Excel (.xlsx / .xls)</strong>, envie-o aqui.<br>
-                                            <strong>O sistema lerá e preencherá diretamente o seu arquivo!</strong> Caso não envie nenhum modelo, o sistema preencherá automaticamente o modelo padrão do sistema em Excel (Técnico ou Qualificação/Aperfeiçoamento).
+                                            <strong>O sistema lerá e preencherá diretamente o seu arquivo!</strong> Caso não envie nenhum modelo, o sistema gerará automaticamente o documento oficial padrão em <strong>Word (.docx)</strong>.
                                         </p>
                                     </div>
                                     <div id="badgeStatusModelo" class="text-md-end flex-shrink-0">
-                                        <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 small">
-                                            <i class="bi bi-gear me-1"></i> Usará modelo padrão do sistema
+                                        <span class="badge bg-primary-subtle text-primary border px-3 py-2 small">
+                                            <i class="bi bi-file-earmark-word me-1"></i> Documento Word (.docx) padrão
                                         </span>
                                     </div>
                                 </div>
@@ -440,7 +440,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="tipo_entrada_conteudo" id="entrada_pdf" value="pdf" onchange="alternarEntradaConteudo('pdf')">
                                 <label class="form-check-label fw-semibold" for="entrada_pdf">
-                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i> Subir PDF de Plano de Curso (Padrão SENAI / Técnico)
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i> Subir PDF de Plano de Curso (Técnico / Profissionalizante)
                                 </label>
                             </div>
                         </div>
@@ -470,7 +470,7 @@
                                             </div>
                                             <h6 class="fw-bold mb-1">Plano de Curso (PDF)</h6>
                                             <p class="text-muted small mb-2">
-                                                Envie o PDF do Plano de Curso do SENAI/Escola técnica para leitura automática.
+                                                Envie o PDF do Plano de Curso do Ensino Técnico / Profissionalizante para leitura automática.
                                             </p>
                                         </div>
                                         <div>
@@ -565,8 +565,8 @@ function verificarUploadModelo(input) {
         `;
     } else {
         badge.innerHTML = `
-            <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 small">
-                <i class="bi bi-gear me-1"></i> Usará modelo padrão do sistema
+            <span class="badge bg-primary-subtle text-primary border px-3 py-2 small">
+                <i class="bi bi-file-earmark-word me-1"></i> Documento Word (.docx) padrão
             </span>
         `;
     }
@@ -601,15 +601,15 @@ function atualizarTipoCurso() {
         if (val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA')) {
             if (badge) {
                 badge.className = 'badge badge-subtle-primary me-1';
-                badge.innerHTML = '<i class="bi bi-mortarboard-fill me-1"></i> Modelo Técnico (Padrão)';
+                badge.innerHTML = '<i class="bi bi-mortarboard-fill me-1"></i> Ensino Técnico';
             }
-            label.innerText = 'modelo tecnico.xlsx (padrão caso não envie modelo próprio)';
+            label.innerText = 'Documento estruturado com capacidades e conhecimentos técnicos';
         } else {
             if (badge) {
                 badge.className = 'badge badge-subtle-success me-1';
-                badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Qualificação (Padrão)';
+                badge.innerHTML = '<i class="bi bi-award-fill me-1"></i> Qualificação Profissional';
             }
-            label.innerText = 'modelo qualificacao.xlsx (padrão caso não envie modelo próprio)';
+            label.innerText = 'Documento estruturado para formação profissionalizante';
         }
     } else {
         if (blocoTecnico) blocoTecnico.style.display = 'none';
@@ -1045,7 +1045,7 @@ function iniciarGeracaoPlanejamento(e) {
     const overlay = document.getElementById('loadingOverlay');
     if (overlay) {
         document.getElementById('loadingTitle').innerText = 'Gerando Planejamento Docente...';
-        document.getElementById('loadingMessage').innerText = 'Lendo PDF, aplicando Taxonomia de Bloom e preenchendo o Excel oficial.';
+        document.getElementById('loadingMessage').innerText = 'Distribuindo conteúdos, aplicando Taxonomia de Bloom e estruturando o documento Word.';
         overlay.classList.add('active');
     }
 }

@@ -2455,7 +2455,7 @@ def planejamento_docente():
         # ----------------------------------------------------------
         arquivo_modelo = request.files.get("arquivo_modelo") or request.files.get("arquivo_modelo_excel")
         caminho_modelo_custom = None
-        formato_modelo = "excel"
+        formato_modelo = "word"  # Padrão é Word (.docx) caso não seja enviado modelo específico
         if arquivo_modelo and arquivo_modelo.filename:
             nome_modelo = secure_filename(arquivo_modelo.filename)
             ext_modelo = os.path.splitext(nome_modelo)[1].lower()
@@ -2604,14 +2604,15 @@ def planejamento_docente():
         }
 
         os.makedirs("outputs", exist_ok=True)
-        if formato_modelo == "word" and caminho_modelo_custom and caminho_modelo_custom.lower().endswith(".docx"):
-            caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
-            nome_arquivo_gerado = os.path.basename(caminho_gerado)
-            print(f"[OK] Planejamento Docente (Word) gerado com sucesso: {caminho_gerado}")
-        else:
+        if formato_modelo == "excel" and caminho_modelo_custom and (caminho_modelo_custom.lower().endswith(".xlsx") or caminho_modelo_custom.lower().endswith(".xls")):
             caminho_gerado = gerar_excel_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
             nome_arquivo_gerado = os.path.basename(caminho_gerado)
             print(f"[OK] Planejamento Docente (Excel) gerado com sucesso: {caminho_gerado}")
+        else:
+            # Padrão: Documento Word (.docx) estruturado
+            caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom if formato_modelo == "word" else None)
+            nome_arquivo_gerado = os.path.basename(caminho_gerado)
+            print(f"[OK] Planejamento Docente (Word) gerado com sucesso: {caminho_gerado}")
 
         # ----------------------------------------------------------
         # 4. Salva o Planejamento Docente e gera automaticamente os Planos de Aula
