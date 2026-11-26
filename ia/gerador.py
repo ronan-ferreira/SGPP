@@ -291,13 +291,13 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segme
             "Resposta correta: A\n"
             "Justificativa: [Explicação didática da resposta correta]"
         )
-        tokens_por_questao = 220
+        tokens_por_questao = 350
     elif tipo == "discursiva":
         instrucao_tipo = (
             f"Crie EXATAMENTE {quantidade} questões DISCURSIVAS formativas e analíticas de nível {dificuldade} adequadas ao nível dos estudantes."
         )
         formato = "Questão 1: [Enunciado discursivo / reflexivo]\n\nQuestão 2: [Enunciado]"
-        tokens_por_questao = 110
+        tokens_por_questao = 200
     elif tipo == "pratica":
         if eh_basica:
             instrucao_tipo = (
@@ -316,7 +316,7 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segme
             "Recursos Necessários: [Materiais e ferramentas recomendadas]\n"
             "Critérios de Avaliação: [Checklist do que será avaliado no resultado]"
         )
-        tokens_por_questao = 200
+        tokens_por_questao = 320
     else:
         # Formato Misto (combina questões Objetivas, Discursivas e Práticas)
         qtd_pratica = max(1, quantidade // 3) if quantidade >= 3 else (1 if quantidade >= 2 else 0)
@@ -346,9 +346,9 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segme
             "Questão 2: [Discursiva dissertativa técnica]\n\n"
             "Questão 3: [Atividade Prática Aplicada com Contexto, Roteiro e Critérios de Avaliação]"
         )
-        tokens_por_questao = 190
+        tokens_por_questao = 300
 
-    num_predict = min(3500, max(600, quantidade * tokens_por_questao))
+    num_predict = min(8192, max(1800, quantidade * tokens_por_questao))
     conteudo_pedagogico = extrair_conteudo_pedagogico(texto_pdf)
 
     system_prompt = "Você é um professor especialista e coordenador pedagógico responsável por criar atividades avaliativas rigorosas e de alta qualidade técnica de acordo com as diretrizes educacionais."

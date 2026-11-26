@@ -1175,7 +1175,9 @@ def repositorio_pdf(id):
         "curso": item.get("curso") or "—",
         "unidade_curricular": item.get("disciplina") or "—",
         "aula_encontro": "____________________________",
-        "nivel_bloom": (item.get("dificuldade") or "Médio").capitalize()
+        "nivel_bloom": (item.get("dificuldade") or "Médio").capitalize(),
+        "instituicao": session.get("instituicao", ""),
+        "logo_path": _obter_caminho_logo_usuario(session.get("logo_instituicao")),
     }
 
     enunciado = (item.get("enunciado") or "").strip()
@@ -1247,7 +1249,9 @@ def repositorio_word(id):
         "curso": item.get("curso") or "—",
         "unidade_curricular": item.get("disciplina") or "—",
         "aula_encontro": "____________________________",
-        "nivel_bloom": (item.get("dificuldade") or "Médio").capitalize()
+        "nivel_bloom": (item.get("dificuldade") or "Médio").capitalize(),
+        "instituicao": session.get("instituicao", ""),
+        "logo_path": _obter_caminho_logo_usuario(session.get("logo_instituicao")),
     }
 
     enunciado = (item.get("enunciado") or "").strip()
@@ -2160,12 +2164,16 @@ def plano_pdf(id):
 
     arquivo_docx = f"outputs/plano_{id}.docx"
     arquivo_pdf = f"outputs/plano_{id}.pdf"
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
+    instituicao = session.get("instituicao", "")
 
     gerar_docx_plano(
         titulo="PLANO DE AULA",
         subtitulo=plano[3],
         conteudo=plano[4],
-        caminho_saida=arquivo_docx
+        caminho_saida=arquivo_docx,
+        logo_path=logo_path,
+        instituicao=instituicao,
     )
 
     resultado = gerar_pdf_plano(
@@ -2173,7 +2181,9 @@ def plano_pdf(id):
         arquivo_pdf,
         titulo="PLANO DE AULA",
         subtitulo=plano[3],
-        conteudo=plano[4]
+        conteudo=plano[4],
+        logo_path=logo_path,
+        instituicao=instituicao,
     )
 
     if not resultado or not os.path.exists(arquivo_pdf):
@@ -2183,7 +2193,9 @@ def plano_pdf(id):
             pdf_path=arquivo_pdf,
             titulo="PLANO DE AULA",
             subtitulo=plano[3],
-            conteudo=plano[4]
+            conteudo=plano[4],
+            logo_path=logo_path,
+            instituicao=instituicao,
         )
 
     if os.path.exists(arquivo_pdf):
@@ -2225,12 +2237,16 @@ def plano_word(id):
         return "Plano não encontrado"
 
     arquivo = f"outputs/plano_{id}.docx"
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
+    instituicao = session.get("instituicao", "")
 
     gerar_docx_plano(
         titulo="PLANO DE AULA",
         subtitulo=plano[3],
         conteudo=plano[4],
-        caminho_saida=arquivo
+        caminho_saida=arquivo,
+        logo_path=logo_path,
+        instituicao=instituicao,
     )
 
     return send_file(
@@ -2265,6 +2281,8 @@ def curso_pdf(curso_id):
 
     arquivo_docx = f"outputs/plano_{curso_id}.docx"
     arquivo_pdf = f"outputs/plano_{curso_id}.pdf"
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
+    instituicao = session.get("instituicao", "")
 
     nome_curso = curso[1]
     planos_completos = []
@@ -2272,20 +2290,23 @@ def curso_pdf(curso_id):
         planos_completos.append(f"DIA {p[2]}\n{p[4]}")
     conteudo_total = "\n\n".join(planos_completos)
 
-    if not os.path.exists(arquivo_docx):
-        gerar_docx_plano(
-            titulo="PLANO DE AULA",
-            subtitulo=f"Curso: {nome_curso}",
-            conteudo=conteudo_total,
-            caminho_saida=arquivo_docx
-        )
+    gerar_docx_plano(
+        titulo="PLANO DE AULA",
+        subtitulo=f"Curso: {nome_curso}",
+        conteudo=conteudo_total,
+        caminho_saida=arquivo_docx,
+        logo_path=logo_path,
+        instituicao=instituicao,
+    )
 
     gerar_pdf_plano(
         docx_path=arquivo_docx,
         pdf_path=arquivo_pdf,
         titulo="PLANO DE AULA",
         subtitulo=f"Curso: {nome_curso}",
-        conteudo=conteudo_total
+        conteudo=conteudo_total,
+        logo_path=logo_path,
+        instituicao=instituicao,
     )
 
     if not os.path.exists(arquivo_pdf):
@@ -2295,7 +2316,9 @@ def curso_pdf(curso_id):
             pdf_path=arquivo_pdf,
             titulo="PLANO DE AULA",
             subtitulo=f"Curso: {nome_curso}",
-            conteudo=conteudo_total
+            conteudo=conteudo_total,
+            logo_path=logo_path,
+            instituicao=instituicao,
         )
 
     if os.path.exists(arquivo_pdf):
@@ -2329,20 +2352,23 @@ def curso_word(curso_id):
         return "Curso não encontrado", 404
 
     arquivo_docx = f"outputs/plano_{curso_id}.docx"
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
+    instituicao = session.get("instituicao", "")
 
-    if not os.path.exists(arquivo_docx):
-        nome_curso = curso[1]
-        planos_completos = []
-        for p in planos:
-            planos_completos.append(f"DIA {p[2]}\n{p[4]}")
-        conteudo_total = "\n\n".join(planos_completos)
+    nome_curso = curso[1]
+    planos_completos = []
+    for p in planos:
+        planos_completos.append(f"DIA {p[2]}\n{p[4]}")
+    conteudo_total = "\n\n".join(planos_completos)
 
-        gerar_docx_plano(
-            titulo="PLANO DE AULA",
-            subtitulo=f"Curso: {nome_curso}",
-            conteudo=conteudo_total,
-            caminho_saida=arquivo_docx
-        )
+    gerar_docx_plano(
+        titulo="PLANO DE AULA",
+        subtitulo=f"Curso: {nome_curso}",
+        conteudo=conteudo_total,
+        caminho_saida=arquivo_docx,
+        logo_path=logo_path,
+        instituicao=instituicao,
+    )
 
     return send_file(
         arquivo_docx,

@@ -17,13 +17,24 @@ MODELO_TECNICO      = os.path.join(PASTA_TEMPLATES, "modelo_tecnico.xlsx")
 MODELO_QUALIFICACAO = os.path.join(PASTA_TEMPLATES, "modelo_qualificacao.xlsx")
 MODELO_LEGADO       = os.path.join(PASTA_TEMPLATES, "modelo_planejamento_docente.xlsx")
 
-# Caminhos da logo oficial SENAI 2024
-LOGO_DOWNLOADS = r"C:\Users\ronanjose\Downloads\SENAI_logo_2024 (1).png"
-LOGO_PROJETO   = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
+# PNG 1x1 transparente usado para limpar a logo fixa do modelo quando o professor não enviou logo própria
+_PNG_TRANSPARENTE_1X1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+# Caminho opcional da logo SENAI (usado apenas se a instituição do docente for explicitamente SENAI)
+LOGO_PROJETO = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
 
 
-def obter_bytes_logo_oficial(logo_custom_path=None):
-    """Retorna os bytes da logo institucional (do professor ou SENAI como fallback)."""
+def obter_bytes_logo_oficial(logo_custom_path=None, unidade_escolar=""):
+    """
+    Retorna os bytes da logo institucional do professor.
+    Se o professor não enviou logo própria, retorna um PNG transparente 1x1
+    (evitando exibir logo do SENAI para professores de outras instituições),
+    exceto se a instituição informada contiver explicitamente 'SENAI'.
+    """
     if logo_custom_path and os.path.exists(logo_custom_path):
         try:
             with open(logo_custom_path, "rb") as f:
@@ -31,22 +42,22 @@ def obter_bytes_logo_oficial(logo_custom_path=None):
         except Exception:
             pass
 
-    for caminho in [LOGO_DOWNLOADS, LOGO_PROJETO]:
-        if caminho and os.path.exists(caminho):
-            try:
-                with open(caminho, "rb") as f:
-                    return f.read()
-            except Exception:
-                pass
-    return None
+    if "SENAI" in str(unidade_escolar or "").upper() and os.path.exists(LOGO_PROJETO):
+        try:
+            with open(LOGO_PROJETO, "rb") as f:
+                return f.read()
+        except Exception:
+            pass
+
+    return _PNG_TRANSPARENTE_1X1
 
 
-def garantir_logo_oficial(caminho_xlsx: str, logo_custom_path=None):
+def garantir_logo_oficial(caminho_xlsx: str, logo_custom_path=None, unidade_escolar=""):
     """
-    Insere com fidelidade a logo institucional (da escola do professor ou SENAI)
-    na mídia da planilha Excel.
+    Insere a logo institucional do professor na planilha Excel ou limpa
+    a imagem fixa do template caso o professor ainda não tenha enviado logo.
     """
-    logo_bytes = obter_bytes_logo_oficial(logo_custom_path=logo_custom_path)
+    logo_bytes = obter_bytes_logo_oficial(logo_custom_path=logo_custom_path, unidade_escolar=unidade_escolar)
     if not logo_bytes or not os.path.exists(caminho_xlsx):
         return
 
@@ -653,7 +664,11 @@ def _gerar_excel_qualificacao(dados_cabecalho, aulas, caminho_modelo, caminho_sa
     wb.close()
     if aplicar_logo:
         logo_user_path = dados_cabecalho.get("logo_path")
-        garantir_logo_oficial(caminho_saida, logo_custom_path=logo_user_path)
+        garantir_logo_oficial(
+            caminho_saida,
+            logo_custom_path=logo_user_path,
+            unidade_escolar=dados_cabecalho.get("unidade_escolar", ""),
+        )
     return caminho_saida
 
 
@@ -842,5 +857,9 @@ def _gerar_excel_tecnico(dados_cabecalho, aulas, caminho_modelo, caminho_saida, 
     wb.close()
     if aplicar_logo:
         logo_user_path = dados_cabecalho.get("logo_path")
-        garantir_logo_oficial(caminho_saida, logo_custom_path=logo_user_path)
+        garantir_logo_oficial(
+            caminho_saida,
+            logo_custom_path=logo_user_path,
+            unidade_escolar=dados_cabecalho.get("unidade_escolar", ""),
+        )
     return caminho_saida

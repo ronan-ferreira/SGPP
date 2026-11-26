@@ -186,8 +186,8 @@ def gerar_pdf_atividade_reportlab(
 
     story = []
 
-    # 1. Cabeçalho com Logo e Título
-    logo_path = cabecalho.get("logo_path") or _localizar_logo()
+    # 1. Cabeçalho com Logo (somente se o professor enviou uma) e Título
+    logo_path = cabecalho.get("logo_path")
     instituicao_txt = cabecalho.get("instituicao") or ""
     titulo_escaped = html.escape(titulo_doc)
 
@@ -209,7 +209,7 @@ def gerar_pdf_atividade_reportlab(
 
     if logo_path and os.path.exists(logo_path):
         try:
-            img_logo = Image(logo_path, width=105, height=28)
+            img_logo = Image(logo_path, width=105, height=34, kind="proportional")
             img_logo.hAlign = "LEFT"
             t_header = Table([[img_logo, header_elements]], colWidths=[115, 408])
             t_header.setStyle(TableStyle([

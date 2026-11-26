@@ -129,9 +129,9 @@ def _chamar_gemini(prompt: str, system_prompt: str = None, max_tokens: int = 200
             "parts": [{"text": prompt}]
         })
 
-    # Modelos Gemini 3.x usam parte do orçamento de tokens em raciocínio interno;
-    # garantimos folga suficiente para não truncar a resposta final.
-    effective_max_tokens = max(int(max_tokens or 2000), 1024)
+    # Modelos Gemini 3.x descontam tokens de raciocínio interno ("thought") do mesmo maxOutputTokens;
+    # garantimos folga ampla para evitar respostas truncadas no meio das questões/planos.
+    effective_max_tokens = min(8192, max(int(max_tokens or 2000) + 2500, 4096))
     payload = {
         "contents": contents,
         "generationConfig": {

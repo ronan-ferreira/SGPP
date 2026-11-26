@@ -69,7 +69,8 @@ def gerar_docx_plano(
     subtitulo,
     conteudo,
     caminho_saida,
-    logo_path=None
+    logo_path=None,
+    instituicao=None
 ):
     doc = Document()
 
@@ -80,26 +81,12 @@ def gerar_docx_plano(
     secao.left_margin = Cm(3)
     secao.right_margin = Cm(2)
 
-    # Adicionar cabeçalho com logo se informado
-    if logo_path is None:
-        # Tenta encontrar o logo em locais comuns
-        for possivel in [
-            "static/img/logo.png",
-            "static/img/logo.jpg",
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "static/img/logo.png"),
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "static/img/logo.jpg"),
-        ]:
-            if os.path.exists(possivel):
-                logo_path = possivel
-                break
-
-    # Cabeçalho com logo
+    # Cabeçalho com logo somente quando enviada pelo professor no perfil
     if logo_path and os.path.exists(logo_path):
         try:
             cabecalho = doc.sections[0].header
             cabecalho.is_linked_to_previous = False
 
-            # Apenas a logo, sem texto
             paragrafo_logo = cabecalho.paragraphs[0] if cabecalho.paragraphs else cabecalho.add_paragraph()
             paragrafo_logo.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run_logo = paragrafo_logo.add_run()
@@ -107,6 +94,15 @@ def gerar_docx_plano(
             paragrafo_logo.space_after = Pt(2)
         except Exception as e:
             print(f"Erro ao adicionar logo no cabeçalho: {e}")
+
+    if instituicao:
+        p_inst = doc.add_paragraph()
+        p_inst.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        run_inst = p_inst.add_run(str(instituicao).strip().upper())
+        run_inst.bold = True
+        run_inst.font.size = Pt(10)
+        run_inst.font.color.rgb = RGBColor(71, 85, 105)
+        p_inst.space_after = Pt(2)
 
     # Título = nome do curso (subtitulo), alinhado à esquerda
     if subtitulo:
