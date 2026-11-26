@@ -416,7 +416,7 @@ def criar_sessao_checkout_pix(
         checkout_session = _para_dict(stripe.checkout.Session.create(
             mode="payment",
             customer=customer_id,
-            payment_method_types=["pix"],
+            allowed_payment_method_types=["pix"],
             payment_method_options={"pix": {"expires_after_seconds": 3600}},
             line_items=[{
                 "price_data": {
