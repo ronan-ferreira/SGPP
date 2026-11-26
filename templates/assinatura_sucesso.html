@@ -18,7 +18,11 @@
                 <div class="fw-bold fs-5">{{ info.plano_nome }}</div>
                 {% if info.expira_em %}
                 <div class="small mt-1">
-                    Próxima renovação prevista: <strong>{{ info.expira_em.strftime('%d/%m/%Y') }}</strong>
+                    {% if info.metodo == 'pix' %}
+                        Acesso válido até: <strong>{{ info.expira_em.strftime('%d/%m/%Y') }}</strong>
+                    {% else %}
+                        Próxima renovação prevista: <strong>{{ info.expira_em.strftime('%d/%m/%Y') }}</strong>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>

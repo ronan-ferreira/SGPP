@@ -251,6 +251,22 @@
             color: #c2410c;
             transform: translateY(-2px);
         }
+        .btn-pricing-pix {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1.5px solid #a7f3d0;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-weight: 600;
+            font-size: .88rem;
+            transition: all .2s;
+        }
+        .btn-pricing-pix:hover {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+            transform: translateY(-1px);
+        }
         .btn-pricing-gold {
             background: linear-gradient(135deg, #061838 0%, #003078 65%, #0a469e 100%);
             color: #fff;
@@ -376,9 +392,9 @@
             <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 mb-4 d-flex align-items-start gap-3" role="alert">
                 <i class="bi bi-clock-history fs-3 text-warning-emphasis flex-shrink-0"></i>
                 <div>
-                    <h5 class="fw-bold mb-1">Seu período de teste gratuito terminou</h5>
+                    <h5 class="fw-bold mb-1">Seu período de acesso gratuito ou plano Pix terminou</h5>
                     <p class="mb-0 small">
-                        Todos os seus planejamentos, planos de aula, atividades e questões continuam salvos com segurança. Escolha um dos planos abaixo para reativar seu acesso imediatamente.
+                        Todos os seus planejamentos, planos de aula, atividades e questões continuam salvos com segurança. Escolha um plano abaixo (Cartão ou Pix) para reativar seu acesso imediatamente.
                     </p>
                 </div>
             </div>
@@ -415,6 +431,21 @@
                     </button>
                 </form>
             </div>
+            {% elif assinatura_atual and assinatura_atual.status == 'pix_active' %}
+            <div class="alert alert-success border-0 shadow-sm rounded-4 p-3 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-qr-code-scan fs-4 text-success"></i>
+                    <div>
+                        <strong>Plano Pix ativo:</strong> {{ assinatura_atual.plano_nome }}
+                        {% if assinatura_atual.plano_expira_em %}
+                        <span class="text-muted small ms-1">(acesso válido até {{ assinatura_atual.plano_expira_em.strftime('%d/%m/%Y') }} &mdash; você pode acumular novos dias renovando abaixo)</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="/dashboard" class="btn btn-success btn-sm fw-semibold px-3">
+                    <i class="bi bi-grid-1x2 me-1"></i> Ir para o Painel
+                </a>
+            </div>
             {% endif %}
 
             <div class="row g-4 justify-content-center align-items-stretch">
@@ -428,21 +459,30 @@
                             <span class="pricing-value">19</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado por mês</div>
+                        <div class="pricing-recurrence">por mês (ou 30 dias no Pix)</div>
                         <hr class="my-3">
                         <ul class="pricing-features mb-4">
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Exportação ilimitada</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
-                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
+                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cartão ou Pix na hora</li>
                         </ul>
                         {% if session.get('usuario_id') %}
                             {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'mensal' %}
                                 <a href="/perfil" class="btn btn-outline-success w-100 fw-semibold">Plano Atual</a>
                             {% else %}
-                                <form method="POST" action="/assinatura/checkout/mensal" class="m-0">
-                                    <button type="submit" class="btn btn-pricing-outline w-100">Assinar Mensal</button>
-                                </form>
+                                <div class="d-grid gap-2">
+                                    <form method="POST" action="/assinatura/checkout/mensal" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-outline w-100">
+                                            <i class="bi bi-credit-card me-1"></i> Assinar no Cartão
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/assinatura/pix/mensal" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-pix w-100">
+                                            <i class="bi bi-qr-code me-1"></i> Pagar com Pix (30 dias)
+                                        </button>
+                                    </form>
+                                </div>
                             {% endif %}
                         {% else %}
                             <a href="/cadastro?plano=mensal" class="btn btn-pricing-outline w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
@@ -460,7 +500,7 @@
                             <span class="pricing-value">39</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado a cada 3 meses (R$ 13,30/mês)</div>
+                        <div class="pricing-recurrence">a cada 3 meses (R$ 13,30/mês)</div>
                         <div class="pricing-economy mb-3">
                             <i class="bi bi-arrow-down-circle-fill"></i> Economia de 33% vs. mensal
                         </div>
@@ -468,15 +508,24 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Exportação ilimitada</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
-                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
+                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cartão ou Pix na hora</li>
                         </ul>
                         {% if session.get('usuario_id') %}
                             {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'trimestral' %}
                                 <a href="/perfil" class="btn btn-success w-100 fw-semibold">Plano Atual</a>
                             {% else %}
-                                <form method="POST" action="/assinatura/checkout/trimestral" class="m-0">
-                                    <button type="submit" class="btn btn-pricing-primary w-100">Assinar Trimestral</button>
-                                </form>
+                                <div class="d-grid gap-2">
+                                    <form method="POST" action="/assinatura/checkout/trimestral" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-primary w-100">
+                                            <i class="bi bi-credit-card me-1"></i> Assinar no Cartão
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/assinatura/pix/trimestral" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-pix w-100">
+                                            <i class="bi bi-qr-code me-1"></i> Pagar com Pix (90 dias)
+                                        </button>
+                                    </form>
+                                </div>
                             {% endif %}
                         {% else %}
                             <a href="/cadastro?plano=trimestral" class="btn btn-pricing-primary w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
@@ -493,7 +542,7 @@
                             <span class="pricing-value">69</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado a cada 6 meses (R$ 11,65/mês)</div>
+                        <div class="pricing-recurrence">a cada 6 meses (R$ 11,65/mês)</div>
                         <div class="pricing-economy mb-3">
                             <i class="bi bi-arrow-down-circle-fill"></i> Economia de 41% vs. mensal
                         </div>
@@ -501,15 +550,24 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Exportação ilimitada</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
-                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
+                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cartão ou Pix na hora</li>
                         </ul>
                         {% if session.get('usuario_id') %}
                             {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'semestral' %}
                                 <a href="/perfil" class="btn btn-outline-success w-100 fw-semibold">Plano Atual</a>
                             {% else %}
-                                <form method="POST" action="/assinatura/checkout/semestral" class="m-0">
-                                    <button type="submit" class="btn btn-pricing-outline w-100">Assinar Semestral</button>
-                                </form>
+                                <div class="d-grid gap-2">
+                                    <form method="POST" action="/assinatura/checkout/semestral" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-outline w-100">
+                                            <i class="bi bi-credit-card me-1"></i> Assinar no Cartão
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/assinatura/pix/semestral" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-pix w-100">
+                                            <i class="bi bi-qr-code me-1"></i> Pagar com Pix (180 dias)
+                                        </button>
+                                    </form>
+                                </div>
                             {% endif %}
                         {% else %}
                             <a href="/cadastro?plano=semestral" class="btn btn-pricing-outline w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>
@@ -527,7 +585,7 @@
                             <span class="pricing-value">129</span>
                             <span class="pricing-cents">,90</span>
                         </div>
-                        <div class="pricing-recurrence">cobrado por ano (R$ 10,83/mês)</div>
+                        <div class="pricing-recurrence">por ano (R$ 10,83/mês)</div>
                         <div class="pricing-economy mb-3">
                             <i class="bi bi-arrow-down-circle-fill"></i> Economia de 46% vs. mensal
                         </div>
@@ -535,15 +593,24 @@
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Todos os 4 módulos</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Exportação ilimitada</li>
                             <li><i class="bi bi-check2-circle text-success me-2"></i>Repositório de questões</li>
-                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cancelamento a qualquer hora</li>
+                            <li><i class="bi bi-check2-circle text-success me-2"></i>Cartão ou Pix na hora</li>
                         </ul>
                         {% if session.get('usuario_id') %}
                             {% if assinatura_atual and assinatura_atual.status == 'active' and assinatura_atual.plano_tipo == 'anual' %}
                                 <a href="/perfil" class="btn btn-success w-100 fw-semibold">Plano Atual</a>
                             {% else %}
-                                <form method="POST" action="/assinatura/checkout/anual" class="m-0">
-                                    <button type="submit" class="btn btn-pricing-gold w-100">Assinar Anual</button>
-                                </form>
+                                <div class="d-grid gap-2">
+                                    <form method="POST" action="/assinatura/checkout/anual" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-gold w-100">
+                                            <i class="bi bi-credit-card me-1"></i> Assinar no Cartão
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/assinatura/pix/anual" class="m-0">
+                                        <button type="submit" class="btn btn-pricing-pix w-100">
+                                            <i class="bi bi-qr-code me-1"></i> Pagar com Pix (365 dias)
+                                        </button>
+                                    </form>
+                                </div>
                             {% endif %}
                         {% else %}
                             <a href="/cadastro?plano=anual" class="btn btn-pricing-gold w-100">Começar {{ trial_dias_padrao }} Dias Grátis</a>

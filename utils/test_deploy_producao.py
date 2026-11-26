@@ -218,6 +218,58 @@ class TestDeployProducao(unittest.TestCase):
         finally:
             release_cursor(conn, cur)
 
+    def test_09_pix_avulso_credita_idempotente_acumula_e_expira(self):
+        """Testa crédito de dias via Pix, idempotência (não duplica), acúmulo na renovação e bloqueio ao vencer."""
+        from utils.stripe_service import _creditar_periodo_pix
+
+        uid, _ = self._criar_usuario_teste(trial_delta_days=-3, plano_status="trial")
+        sess_id_1 = f"cs_pix_test_{uuid.uuid4().hex[:10]}"
+        sess_id_2 = f"cs_pix_test_{uuid.uuid4().hex[:10]}"
+
+        try:
+            # 1) Primeiro pagamento Pix de 30 dias
+            exp1 = _creditar_periodo_pix(sess_id_1, uid, "cus_pix_1", "mensal", 30, enviar_email=False)
+            self.assertIsNotNone(exp1)
+            status1 = obter_status_assinatura_usuario(uid)
+            self.assertTrue(status1["acesso_liberado"])
+            self.assertEqual(status1["status"], "pix_active")
+            self.assertGreaterEqual(status1["dias_restantes_pix"], 29)
+
+            # 2) Repetição da mesma sessão (ex: /assinatura/sucesso + webhook) NÃO pode somar novamente
+            exp1_dup = _creditar_periodo_pix(sess_id_1, uid, "cus_pix_1", "mensal", 30, enviar_email=False)
+            self.assertEqual(exp1_dup.date(), exp1.date())
+
+            # 3) Novo pagamento Pix (90 dias) acumula sobre a expiração atual (+90 dias = ~120 dias)
+            exp2 = _creditar_periodo_pix(sess_id_2, uid, "cus_pix_1", "trimestral", 90, enviar_email=False)
+            self.assertGreaterEqual((exp2 - exp1).days, 89)
+            status2 = obter_status_assinatura_usuario(uid)
+            self.assertGreaterEqual(status2["dias_restantes_pix"], 118)
+
+            # 4) Se a data de expiração Pix passar, bloqueia acesso
+            conn, cur = get_cursor()
+            try:
+                cur.execute(
+                    "UPDATE usuarios SET plano_expira_em = %s WHERE id = %s",
+                    (datetime.now() - timedelta(days=1), uid),
+                )
+                conn.commit()
+            finally:
+                release_cursor(conn, cur)
+
+            status_exp = obter_status_assinatura_usuario(uid)
+            self.assertFalse(status_exp["acesso_liberado"])
+            self.assertEqual(status_exp["status"], "pix_expired")
+        finally:
+            conn, cur = get_cursor()
+            try:
+                cur.execute(
+                    "DELETE FROM stripe_eventos WHERE event_id IN (%s, %s)",
+                    (f"pix_session:{sess_id_1}", f"pix_session:{sess_id_2}"),
+                )
+                conn.commit()
+            finally:
+                release_cursor(conn, cur)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,6 +29,7 @@ from utils.stripe_service import (
     stripe_configurado,
     obter_status_assinatura_usuario,
     criar_sessao_checkout,
+    criar_sessao_checkout_pix,
     criar_sessao_portal_cliente,
     sincronizar_checkout_session,
     processar_webhook_stripe,
@@ -664,6 +665,40 @@ def assinatura_checkout(plano):
     )
     if erro or not url_checkout:
         return render_template("precos.html", erro_checkout=erro or "Erro ao iniciar checkout.")
+
+    return redirect(url_checkout, code=303)
+
+
+@app.route("/assinatura/pix/<plano>", methods=["POST"])
+def assinatura_checkout_pix(plano):
+    if "usuario_id" not in session:
+        return redirect("/login?next=/precos")
+
+    usuario_id = session["usuario_id"]
+    email = session.get("email", "")
+    nome = session.get("nome", "")
+
+    if not email:
+        conn, cursor = get_cursor()
+        try:
+            cursor.execute("SELECT nome, email FROM usuarios WHERE id = %s", (usuario_id,))
+            row = cursor.fetchone()
+            if row:
+                nome = nome or row[0]
+                email = row[1]
+                session["email"] = email
+        finally:
+            release_cursor(conn, cursor)
+
+    url_checkout, erro = criar_sessao_checkout_pix(
+        usuario_id=usuario_id,
+        email=email,
+        nome=nome,
+        plano_slug=plano,
+        base_url=request.url_root.rstrip("/"),
+    )
+    if erro or not url_checkout:
+        return render_template("precos.html", erro_checkout=erro or "Erro ao iniciar pagamento Pix.")
 
     return redirect(url_checkout, code=303)
 

@@ -26,24 +26,32 @@ PLANOS_STRIPE = {
         "slug": "mensal",
         "nome": "Plano Mensal",
         "preco_texto": "R$ 19,90/mês",
+        "valor_centavos": 1990,
+        "dias_pix": 30,
         "env_price_id": "STRIPE_PRICE_MENSAL",
     },
     "trimestral": {
         "slug": "trimestral",
         "nome": "Plano Trimestral",
         "preco_texto": "R$ 39,90 a cada 3 meses",
+        "valor_centavos": 3990,
+        "dias_pix": 90,
         "env_price_id": "STRIPE_PRICE_TRIMESTRAL",
     },
     "semestral": {
         "slug": "semestral",
         "nome": "Plano Semestral",
         "preco_texto": "R$ 69,90 a cada 6 meses",
+        "valor_centavos": 6990,
+        "dias_pix": 180,
         "env_price_id": "STRIPE_PRICE_SEMESTRAL",
     },
     "anual": {
         "slug": "anual",
         "nome": "Plano Anual",
         "preco_texto": "R$ 129,90/ano",
+        "valor_centavos": 12990,
+        "dias_pix": 365,
         "env_price_id": "STRIPE_PRICE_ANUAL",
     },
 }
@@ -215,6 +223,28 @@ def obter_status_assinatura_usuario(usuario_id: int) -> dict:
     if plano_expira_em and getattr(plano_expira_em, "tzinfo", None) is not None:
         plano_expira_em = plano_expira_em.replace(tzinfo=None)
 
+    if status_norm == "pix_active":
+        if plano_expira_em and agora < plano_expira_em:
+            segundos = (plano_expira_em - agora).total_seconds()
+            dias_restantes = max(1, int(math.ceil(segundos / 86400.0)))
+            return {
+                "acesso_liberado": True,
+                "status": "pix_active",
+                "status_label": "Ativo (Pix)",
+                "plano_tipo": plano_tipo,
+                "plano_nome": _nome_plano(plano_tipo),
+                "em_trial": False,
+                "dias_restantes_trial": 0,
+                "dias_restantes_pix": dias_restantes,
+                "trial_fim": trial_fim,
+                "plano_expira_em": plano_expira_em,
+                "stripe_customer_id": customer_id,
+                "stripe_subscription_id": subscription_id,
+                "stripe_ativo": stripe_configurado(),
+            }
+        # Período pago via Pix expirou
+        status_norm = "pix_expired"
+
     if status_norm in ("active", "trialing"):
         return {
             "acesso_liberado": True,
@@ -224,6 +254,7 @@ def obter_status_assinatura_usuario(usuario_id: int) -> dict:
             "plano_nome": _nome_plano(plano_tipo),
             "em_trial": status_norm == "trialing",
             "dias_restantes_trial": 0,
+            "dias_restantes_pix": 0,
             "trial_fim": trial_fim,
             "plano_expira_em": plano_expira_em,
             "stripe_customer_id": customer_id,
@@ -260,6 +291,7 @@ def obter_status_assinatura_usuario(usuario_id: int) -> dict:
 
     labels = {
         "expired": "Período de teste encerrado",
+        "pix_expired": "Plano Pix expirado",
         "past_due": "Pagamento pendente",
         "canceled": "Assinatura cancelada",
         "unpaid": "Pagamento não concluído",
@@ -356,6 +388,140 @@ def criar_sessao_checkout(
     except Exception as e:
         print(f"[STRIPE] Erro ao criar Checkout Session (user #{usuario_id}, plano={slug}): {e}")
         return None, "Não foi possível iniciar o pagamento na Stripe. Tente novamente em instantes."
+
+
+def criar_sessao_checkout_pix(
+    usuario_id: int,
+    email: str,
+    nome: str,
+    plano_slug: str,
+    base_url: str,
+) -> tuple[str | None, str | None]:
+    """Cria uma Stripe Checkout Session em modo pagamento único com Pix (QR Code / Copia e Cola)."""
+    if not _configurar_stripe():
+        return None, "O pagamento online (Stripe) ainda não foi configurado no servidor."
+
+    slug = (plano_slug or "").strip().lower()
+    plano_info = PLANOS_STRIPE.get(slug)
+    if not plano_info:
+        return None, "Plano selecionado inválido."
+
+    dias_acesso = plano_info["dias_pix"]
+    valor_centavos = plano_info["valor_centavos"]
+    url_base = (os.getenv("APP_BASE_URL", "").strip() or base_url).rstrip("/")
+
+    try:
+        customer_id = _garantir_customer_stripe(usuario_id, email, nome)
+
+        checkout_session = _para_dict(stripe.checkout.Session.create(
+            mode="payment",
+            customer=customer_id,
+            payment_method_types=["pix"],
+            payment_method_options={"pix": {"expires_after_seconds": 3600}},
+            line_items=[{
+                "price_data": {
+                    "currency": "brl",
+                    "unit_amount": valor_centavos,
+                    "product_data": {
+                        "name": f"SGPP — {plano_info['nome']} (Pix · {dias_acesso} dias)",
+                        "description": f"Acesso completo a todos os módulos do SGPP por {dias_acesso} dias (pagamento avulso via Pix).",
+                    },
+                },
+                "quantity": 1,
+            }],
+            allow_promotion_codes=True,
+            locale="pt-BR",
+            client_reference_id=str(usuario_id),
+            metadata={
+                "usuario_id": str(usuario_id),
+                "plano_tipo": slug,
+                "metodo_pagamento": "pix",
+                "dias_acesso": str(dias_acesso),
+            },
+            success_url=f"{url_base}/assinatura/sucesso?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{url_base}/precos?checkout_cancelado=1",
+        ))
+        return checkout_session["url"], None
+    except Exception as e:
+        print(f"[STRIPE/PIX] Erro ao criar Checkout Pix (user #{usuario_id}, plano={slug}): {e}")
+        return None, "Não foi possível gerar o checkout Pix na Stripe. Tente novamente em instantes."
+
+
+def _creditar_periodo_pix(
+    checkout_session_id: str,
+    usuario_id: int | None,
+    customer_id: str | None,
+    plano_tipo: str | None,
+    dias_acesso: int,
+    enviar_email: bool = False,
+) -> datetime | None:
+    """
+    Libera ou acumula dias de acesso pagos via Pix de forma idempotente (exatamente uma vez por checkout_session_id).
+    Se o usuário já tiver período Pix vigente no futuro, soma os novos dias a partir da expiração atual.
+    """
+    chave_idempotencia = f"pix_session:{checkout_session_id}"
+    conn, cursor = get_cursor()
+    try:
+        if usuario_id:
+            cursor.execute(
+                "SELECT id, nome, email, plano_status, plano_expira_em FROM usuarios WHERE id = %s",
+                (usuario_id,),
+            )
+        elif customer_id:
+            cursor.execute(
+                "SELECT id, nome, email, plano_status, plano_expira_em FROM usuarios WHERE stripe_customer_id = %s",
+                (customer_id,),
+            )
+        else:
+            return None
+
+        row = cursor.fetchone()
+        if not row:
+            print(f"[STRIPE/PIX] Usuário não encontrado para crédito Pix (uid={usuario_id}, cus={customer_id})")
+            return None
+
+        alvo_id, nome_user, email_user, status_atual, expira_atual = row
+
+        if expira_atual and getattr(expira_atual, "tzinfo", None) is not None:
+            expira_atual = expira_atual.replace(tzinfo=None)
+
+        # Garante crédito único mesmo se /assinatura/sucesso e webhook rodarem ambos
+        if not _registrar_evento_idempotente(chave_idempotencia, "pix_credit"):
+            return expira_atual
+
+        agora = datetime.now()
+        base = expira_atual if (status_atual == "pix_active" and expira_atual and expira_atual > agora) else agora
+        nova_expiracao = base + timedelta(days=max(1, int(dias_acesso or 30)))
+
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET plano_status = 'pix_active',
+                plano_tipo = %s,
+                plano_expira_em = %s,
+                stripe_customer_id = COALESCE(%s, stripe_customer_id)
+            WHERE id = %s
+            """,
+            (plano_tipo or "mensal", nova_expiracao, customer_id, alvo_id),
+        )
+        conn.commit()
+        print(f"[STRIPE/PIX] Acesso Pix creditado: usuario #{alvo_id} -> +{dias_acesso} dias (até {nova_expiracao:%d/%m/%Y})")
+
+        if enviar_email and email_user:
+            try:
+                enviar_email_confirmacao_assinatura(
+                    email_user,
+                    nome_user or "",
+                    f"{_nome_plano(plano_tipo)} (Pix)",
+                    proxima_renovacao=f"Acesso válido até {nova_expiracao:%d/%m/%Y}",
+                    app_url=os.getenv("APP_BASE_URL", ""),
+                )
+            except Exception as e_mail:
+                print(f"[STRIPE/PIX] Aviso ao enviar e-mail de confirmação Pix: {e_mail}")
+
+        return nova_expiracao
+    finally:
+        release_cursor(conn, cursor)
 
 
 def criar_sessao_portal_cliente(usuario_id: int, base_url: str) -> tuple[str | None, str | None]:
@@ -489,6 +655,35 @@ def sincronizar_checkout_session(session_id: str, usuario_id_esperado: int | Non
             return False, {"status": status_sessao, "payment_status": status_pagamento}
 
         customer_id = sessao.get("customer")
+        modo = sessao.get("mode") or "subscription"
+        metodo_pg = metadata.get("metodo_pagamento")
+
+        if modo == "payment" or metodo_pg == "pix":
+            if status_pagamento != "paid":
+                return False, {
+                    "status": "pendente_pix",
+                    "plano_tipo": metadata.get("plano_tipo"),
+                    "plano_nome": _nome_plano(metadata.get("plano_tipo")),
+                    "metodo": "pix",
+                }
+            plano_tipo = metadata.get("plano_tipo") or "mensal"
+            dias_acesso = int(metadata.get("dias_acesso") or PLANOS_STRIPE.get(plano_tipo, {}).get("dias_pix", 30))
+            expira_em = _creditar_periodo_pix(
+                checkout_session_id=session_id,
+                usuario_id=uid,
+                customer_id=customer_id,
+                plano_tipo=plano_tipo,
+                dias_acesso=dias_acesso,
+                enviar_email=True,
+            )
+            return True, {
+                "plano_tipo": plano_tipo,
+                "plano_nome": f"{_nome_plano(plano_tipo)} (Pix · {dias_acesso} dias)",
+                "status": "pix_active",
+                "metodo": "pix",
+                "expira_em": expira_em,
+            }
+
         sub = sessao.get("subscription")
         sub_id = sub.get("id") if isinstance(sub, dict) else (sub if isinstance(sub, str) else None)
         sub_status = (sub.get("status") if isinstance(sub, dict) else None) or "active"
@@ -509,6 +704,7 @@ def sincronizar_checkout_session(session_id: str, usuario_id_esperado: int | Non
             "plano_tipo": plano_tipo,
             "plano_nome": _nome_plano(plano_tipo),
             "status": sub_status,
+            "metodo": "cartao",
             "expira_em": expira_em,
         }
     except Exception as e:
@@ -564,35 +760,51 @@ def processar_webhook_stripe(payload_bytes: bytes, sig_header: str) -> tuple[boo
         return True, "Evento já processado", 200
 
     try:
-        if event_type == "checkout.session.completed":
+        if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
             metadata = obj.get("metadata") or {}
             uid_raw = metadata.get("usuario_id") or obj.get("client_reference_id")
             uid = int(uid_raw) if uid_raw and str(uid_raw).isdigit() else None
             customer_id = obj.get("customer")
-            sub_id = obj.get("subscription")
-            plano_tipo = metadata.get("plano_tipo")
-            expira_em = None
-            sub_status = "active"
+            modo = obj.get("mode") or "subscription"
+            payment_status = obj.get("payment_status")
 
-            if sub_id:
-                try:
-                    sub = _para_dict(stripe.Subscription.retrieve(sub_id))
-                    sub_status = sub.get("status") or "active"
-                    expira_em = _extrair_period_end_subscription(sub)
-                    if not plano_tipo:
-                        plano_tipo = identificar_plano_por_price_id(_extrair_price_id_subscription(sub))
-                except Exception as e_sub:
-                    print(f"[STRIPE] Aviso ao consultar subscription {sub_id}: {e_sub}")
+            if modo == "payment" or metadata.get("metodo_pagamento") == "pix":
+                if payment_status == "paid" or event_type == "checkout.session.async_payment_succeeded":
+                    plano_tipo = metadata.get("plano_tipo") or "mensal"
+                    dias_acesso = int(metadata.get("dias_acesso") or PLANOS_STRIPE.get(plano_tipo, {}).get("dias_pix", 30))
+                    _creditar_periodo_pix(
+                        checkout_session_id=obj.get("id") or event_id,
+                        usuario_id=uid,
+                        customer_id=customer_id,
+                        plano_tipo=plano_tipo,
+                        dias_acesso=dias_acesso,
+                        enviar_email=True,
+                    )
+            else:
+                sub_id = obj.get("subscription")
+                plano_tipo = metadata.get("plano_tipo")
+                expira_em = None
+                sub_status = "active"
 
-            _atualizar_assinatura_bd(
-                usuario_id=uid,
-                customer_id=customer_id,
-                subscription_id=sub_id,
-                status=sub_status,
-                plano_tipo=plano_tipo,
-                expira_em=expira_em,
-                enviar_email=True,
-            )
+                if sub_id:
+                    try:
+                        sub = _para_dict(stripe.Subscription.retrieve(sub_id))
+                        sub_status = sub.get("status") or "active"
+                        expira_em = _extrair_period_end_subscription(sub)
+                        if not plano_tipo:
+                            plano_tipo = identificar_plano_por_price_id(_extrair_price_id_subscription(sub))
+                    except Exception as e_sub:
+                        print(f"[STRIPE] Aviso ao consultar subscription {sub_id}: {e_sub}")
+
+                _atualizar_assinatura_bd(
+                    usuario_id=uid,
+                    customer_id=customer_id,
+                    subscription_id=sub_id,
+                    status=sub_status,
+                    plano_tipo=plano_tipo,
+                    expira_em=expira_em,
+                    enviar_email=True,
+                )
 
         elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
             metadata = obj.get("metadata") or {}

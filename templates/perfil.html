@@ -166,7 +166,9 @@
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="fw-bold fs-5 text-dark">{{ assinatura_atual.plano_nome }}</span>
                         {% if assinatura_atual.status == 'active' %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle">Ativa</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Ativa (Cartão)</span>
+                        {% elif assinatura_atual.status == 'pix_active' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Ativo (Pix)</span>
                         {% elif assinatura_atual.status == 'trial' and assinatura_atual.acesso_liberado %}
                             <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
                                 Teste Grátis ({{ assinatura_atual.dias_restantes_trial }} dia{{ 's' if assinatura_atual.dias_restantes_trial != 1 else '' }})
@@ -180,13 +182,17 @@
                         <p class="text-muted small mb-0">
                             Próxima renovação prevista: <strong>{{ assinatura_atual.plano_expira_em.strftime('%d/%m/%Y') }}</strong>
                         </p>
+                    {% elif assinatura_atual.status == 'pix_active' and assinatura_atual.plano_expira_em %}
+                        <p class="text-muted small mb-0">
+                            Acesso pago via Pix válido até <strong>{{ assinatura_atual.plano_expira_em.strftime('%d/%m/%Y') }}</strong> ({{ assinatura_atual.dias_restantes_pix }} dia{{ 's' if assinatura_atual.dias_restantes_pix != 1 else '' }} restante{{ 's' if assinatura_atual.dias_restantes_pix != 1 else '' }}).
+                        </p>
                     {% elif assinatura_atual.status == 'trial' and assinatura_atual.trial_fim %}
                         <p class="text-muted small mb-0">
                             Seu período de teste gratuito vai até <strong>{{ assinatura_atual.trial_fim.strftime('%d/%m/%Y') }}</strong>.
                         </p>
                     {% else %}
                         <p class="text-muted small mb-0">
-                            Escolha um plano para liberar todos os recursos de geração e exportação do SGPP.
+                            Escolha um plano (Cartão ou Pix) para liberar todos os recursos de geração e exportação do SGPP.
                         </p>
                     {% endif %}
                 </div>
