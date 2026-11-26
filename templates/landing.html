@@ -4,8 +4,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGPP &mdash; Sistema de Gestão e Planejamento Pedagógico</title>
+    <title>SGPP &mdash; Sistema de Gestão e Planejamento Pedagógico com IA</title>
+    <meta name="description" content="SGPP é a plataforma com IA para professores criarem planejamentos docentes com Taxonomia de Bloom, planos de aula alinhados à BNCC e atividades avaliativas em Word, PDF e Excel. Teste grátis por 7 dias.">
+    <meta name="keywords" content="SGPP, planejamento pedagógico, plano de aula com IA, gerador de atividades avaliativas, BNCC, Taxonomia de Bloom, sistema para professores, planejamento docente">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{{ site_base_url }}/">
+    {% if google_site_verification %}
+    <meta name="google-site-verification" content="{{ google_site_verification }}">
+    {% endif %}
+
+    <!-- Open Graph / Redes Sociais e WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="SGPP">
+    <meta property="og:title" content="SGPP — Sistema de Gestão e Planejamento Pedagógico com IA">
+    <meta property="og:description" content="Crie planejamentos docentes, planos de aula alinhados à BNCC e atividades avaliativas em minutos com exportação em Word, PDF e Excel. Comece com 7 dias grátis.">
+    <meta property="og:url" content="{{ site_base_url }}/">
+    <meta property="og:image" content="{{ site_base_url }}{{ url_for('static', filename='img/logo_sgpp_login.png') }}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SGPP — Gestão e Planejamento Pedagógico com IA">
+    <meta name="twitter:description" content="Automatize planejamentos docentes, planos de aula BNCC e atividades avaliativas com IA. 7 dias de teste gratuito.">
+    <meta name="twitter:image" content="{{ site_base_url }}{{ url_for('static', filename='img/logo_sgpp_login.png') }}">
+
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo_icone_oficial.png') }}?v=1">
+
+    <!-- Dados Estruturados (Schema.org / Google Rich Results) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "name": "SGPP",
+          "alternateName": "Sistema de Gestão e Planejamento Pedagógico",
+          "url": "{{ site_base_url }}/"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "SGPP — Sistema de Gestão e Planejamento Pedagógico",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "Web",
+          "inLanguage": "pt-BR",
+          "url": "{{ site_base_url }}/",
+          "description": "Plataforma web com Inteligência Artificial para professores criarem planejamentos docentes com Taxonomia de Bloom, planos de aula alinhados à BNCC e atividades avaliativas prontas para Word, PDF e Excel.",
+          "offers": {
+            "@type": "AggregateOffer",
+            "priceCurrency": "BRL",
+            "lowPrice": "19.90",
+            "highPrice": "129.90",
+            "offerCount": "4"
+          }
+        }
+      ]
+    }
+    </script>
 
     <!-- Google Fonts Inter + Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

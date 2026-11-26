@@ -270,6 +270,28 @@ class TestDeployProducao(unittest.TestCase):
             finally:
                 release_cursor(conn, cur)
 
+    def test_10_seo_robots_sitemap_e_metatags(self):
+        """Valida /robots.txt, /sitemap.xml e metadados SEO/OpenGraph/JSON-LD da landing page."""
+        with patch.dict(os.environ, {"APP_BASE_URL": "https://sgpp.app.br"}, clear=False):
+            r_robots = self.client.get("/robots.txt")
+            self.assertEqual(r_robots.status_code, 200)
+            txt_robots = r_robots.get_data(as_text=True)
+            self.assertIn("Sitemap: https://sgpp.app.br/sitemap.xml", txt_robots)
+            self.assertIn("Disallow: /dashboard", txt_robots)
+
+            r_map = self.client.get("/sitemap.xml")
+            self.assertEqual(r_map.status_code, 200)
+            xml_map = r_map.get_data(as_text=True)
+            self.assertIn("<loc>https://sgpp.app.br/</loc>", xml_map)
+            self.assertIn("<loc>https://sgpp.app.br/precos</loc>", xml_map)
+
+            r_home = self.client.get("/")
+            self.assertEqual(r_home.status_code, 200)
+            html_home = r_home.get_data(as_text=True)
+            self.assertIn('rel="canonical" href="https://sgpp.app.br/"', html_home)
+            self.assertIn('application/ld+json', html_home)
+            self.assertIn('og:title', html_home)
+
 
 if __name__ == "__main__":
     unittest.main()

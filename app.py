@@ -121,10 +121,13 @@ def _obter_assinatura_requisicao() -> dict | None:
 
 @app.context_processor
 def injetar_contexto_global():
+    base_url = (os.environ.get("APP_BASE_URL", "").strip() or request.url_root).rstrip("/")
     return {
         "assinatura_atual": _obter_assinatura_requisicao(),
         "trial_dias_padrao": dias_trial_padrao(),
         "stripe_configurado": stripe_configurado(),
+        "site_base_url": base_url,
+        "google_site_verification": os.environ.get("GOOGLE_SITE_VERIFICATION", "").strip(),
     }
 
 
@@ -141,6 +144,8 @@ _ROTAS_LIVRES_ASSINATURA = (
     "/perfil",
     "/alterar_senha",
     "/health",
+    "/robots.txt",
+    "/sitemap.xml",
     "/webhook/stripe",
     "/api/validar_senha",
     "/api/concluir_tutorial",
@@ -188,6 +193,64 @@ def health_check():
         "database": "connected" if db_ok else detalhe,
         "environment": "production" if IS_PRODUCTION else "development",
     }), status_code
+
+
+@app.route("/robots.txt", methods=["GET"])
+def robots_txt():
+    """Instruções para mecanismos de busca (Google, Bing, etc.)."""
+    base_url = (os.environ.get("APP_BASE_URL", "").strip() or request.url_root).rstrip("/")
+    conteudo = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /precos\n"
+        "Allow: /cadastro\n"
+        "Allow: /login\n"
+        "Disallow: /dashboard\n"
+        "Disallow: /perfil\n"
+        "Disallow: /atividades\n"
+        "Disallow: /nova_atividade\n"
+        "Disallow: /repositorio\n"
+        "Disallow: /planejamento_docente\n"
+        "Disallow: /listar_planejamentos\n"
+        "Disallow: /listar_cursos\n"
+        "Disallow: /planos\n"
+        "Disallow: /api/\n"
+        "Disallow: /assinatura/\n"
+        "Disallow: /webhook/\n"
+        "Disallow: /media/\n"
+        f"\nSitemap: {base_url}/sitemap.xml\n"
+    )
+    return app.response_class(conteudo, mimetype="text/plain; charset=utf-8")
+
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap_xml():
+    """Sitemap XML oficial das páginas públicas do SGPP para indexação no Google."""
+    base_url = (os.environ.get("APP_BASE_URL", "").strip() or request.url_root).rstrip("/")
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    urls = [
+        (f"{base_url}/", "weekly", "1.0"),
+        (f"{base_url}/precos", "weekly", "0.9"),
+        (f"{base_url}/cadastro", "monthly", "0.8"),
+        (f"{base_url}/login", "monthly", "0.5"),
+    ]
+    itens = []
+    for loc, freq, prio in urls:
+        itens.append(
+            f"  <url>\n"
+            f"    <loc>{loc}</loc>\n"
+            f"    <lastmod>{hoje}</lastmod>\n"
+            f"    <changefreq>{freq}</changefreq>\n"
+            f"    <priority>{prio}</priority>\n"
+            f"  </url>"
+        )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(itens)
+        + "\n</urlset>\n"
+    )
+    return app.response_class(xml, mimetype="application/xml; charset=utf-8")
 
 
 @app.route("/media/logo/<path:filename>")
