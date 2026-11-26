@@ -161,6 +161,63 @@ class TestDeployProducao(unittest.TestCase):
             self.assertFalse(storage_configurado())
             self.assertIsNone(garantir_arquivo_local("/tmp/nao_existe_sgpp_999.png", "logos/nao_existe.png"))
 
+    def test_08_stripe_v17_webhook_event_object_compatibilidade(self):
+        """Garante compatibilidade com objetos StripeObject do stripe-python v17 (sem .get())."""
+        import stripe as stripe_sdk
+        from utils.stripe_service import _para_dict, _extrair_subscription_id_invoice
+
+        uid, _ = self._criar_usuario_teste(trial_delta_days=-5, plano_status="trial")
+        evento_id = f"evt_test_{uuid.uuid4().hex[:12]}"
+        evento_obj = stripe_sdk.Event.construct_from(
+            {
+                "id": evento_id,
+                "object": "event",
+                "type": "customer.subscription.updated",
+                "data": {
+                    "object": {
+                        "id": "sub_test_v17",
+                        "object": "subscription",
+                        "customer": "cus_test_v17",
+                        "status": "active",
+                        "metadata": {"usuario_id": str(uid), "plano_tipo": "trimestral"},
+                        "items": {"data": [{"current_period_end": 1893456000, "price": {"id": "price_x"}}]},
+                    }
+                },
+            },
+            key="rk_test",
+        )
+        # Confirma que _para_dict converte recursivamente StripeObject sem quebrar
+        d = _para_dict(evento_obj)
+        self.assertEqual(d["id"], evento_id)
+        self.assertEqual(d["data"]["object"]["status"], "active")
+        self.assertEqual(
+            _extrair_subscription_id_invoice({"parent": {"subscription_details": {"subscription": "sub_2026"}}}),
+            "sub_2026",
+        )
+
+        with patch.dict(
+            os.environ,
+            {"STRIPE_SECRET_KEY": "rk_test_123", "STRIPE_WEBHOOK_SECRET": "whsec_test_123"},
+            clear=False,
+        ):
+            with patch("utils.stripe_service.stripe.Webhook.construct_event", return_value=evento_obj):
+                ok, msg, code = processar_webhook_stripe(b"{}", "t=1,v1=abc")
+                self.assertTrue(ok, msg)
+                self.assertEqual(code, 200)
+
+        status = obter_status_assinatura_usuario(uid)
+        self.assertTrue(status["acesso_liberado"])
+        self.assertEqual(status["status"], "active")
+        self.assertEqual(status["plano_tipo"], "trimestral")
+
+        # Limpeza do evento de teste
+        conn, cur = get_cursor()
+        try:
+            cur.execute("DELETE FROM stripe_eventos WHERE event_id = %s", (evento_id,))
+            conn.commit()
+        finally:
+            release_cursor(conn, cur)
+
 
 if __name__ == "__main__":
     unittest.main()

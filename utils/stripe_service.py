@@ -101,39 +101,59 @@ def _timestamp_para_datetime(ts) -> datetime | None:
         return None
 
 
+def _para_dict(obj):
+    """Converte objetos StripeObject (stripe-python v5..v17+) em dict puro recursivamente."""
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, list):
+        return [_para_dict(i) for i in obj]
+    if hasattr(obj, "to_dict"):
+        try:
+            obj = obj.to_dict()
+        except Exception:
+            pass
+    if isinstance(obj, dict):
+        return {k: _para_dict(v) for k, v in obj.items()}
+    return obj
+
+
+def _extrair_subscription_id_invoice(inv: dict) -> str | None:
+    """Extrai o ID da assinatura de uma Invoice (compatível com Stripe API clássica e 2025+)."""
+    if not isinstance(inv, dict):
+        return None
+    sub_id = inv.get("subscription")
+    if not sub_id:
+        parent = inv.get("parent") or {}
+        sub_details = parent.get("subscription_details") or {}
+        sub_id = sub_details.get("subscription")
+    return sub_id if isinstance(sub_id, str) else (sub_id.get("id") if isinstance(sub_id, dict) else None)
+
+
 def _extrair_period_end_subscription(sub) -> datetime | None:
     """Extrai current_period_end compatível com versões antigas e novas da API Stripe."""
-    if not sub:
+    sub_dict = _para_dict(sub)
+    if not isinstance(sub_dict, dict):
         return None
-    val = None
-    if isinstance(sub, dict):
-        val = sub.get("current_period_end")
-        if not val:
-            itens = (sub.get("items") or {}).get("data") or []
-            if itens and isinstance(itens[0], dict):
-                val = itens[0].get("current_period_end")
-    else:
-        val = getattr(sub, "current_period_end", None)
-        if not val:
-            try:
-                itens = sub["items"]["data"]
-                if itens:
-                    val = itens[0].get("current_period_end")
-            except Exception:
-                pass
+    val = sub_dict.get("current_period_end")
+    if not val:
+        itens = (sub_dict.get("items") or {}).get("data") or []
+        if itens and isinstance(itens[0], dict):
+            val = itens[0].get("current_period_end")
     return _timestamp_para_datetime(val)
 
 
 def _extrair_price_id_subscription(sub) -> str | None:
-    if not sub:
+    sub_dict = _para_dict(sub)
+    if not isinstance(sub_dict, dict):
         return None
     try:
-        itens = (sub.get("items") or {}).get("data") or [] if isinstance(sub, dict) else sub["items"]["data"]
-        if itens:
-            price = itens[0].get("price") if isinstance(itens[0], dict) else getattr(itens[0], "price", None)
+        itens = (sub_dict.get("items") or {}).get("data") or []
+        if itens and isinstance(itens[0], dict):
+            price = itens[0].get("price")
             if isinstance(price, dict):
                 return price.get("id")
-            return getattr(price, "id", None)
+            if isinstance(price, str):
+                return price
     except Exception:
         pass
     return None
@@ -271,11 +291,11 @@ def _garantir_customer_stripe(usuario_id: int, email: str, nome: str) -> str:
         if row and row[0]:
             return row[0]
 
-        customer = stripe.Customer.create(
+        customer = _para_dict(stripe.Customer.create(
             email=email,
             name=nome,
             metadata={"usuario_id": str(usuario_id)},
-        )
+        ))
         customer_id = customer["id"]
 
         cursor.execute(
@@ -312,7 +332,7 @@ def criar_sessao_checkout(
     try:
         customer_id = _garantir_customer_stripe(usuario_id, email, nome)
 
-        checkout_session = stripe.checkout.Session.create(
+        checkout_session = _para_dict(stripe.checkout.Session.create(
             mode="subscription",
             customer=customer_id,
             line_items=[{"price": price_id, "quantity": 1}],
@@ -331,7 +351,7 @@ def criar_sessao_checkout(
             },
             success_url=f"{url_base}/assinatura/sucesso?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{url_base}/precos?checkout_cancelado=1",
-        )
+        ))
         return checkout_session["url"], None
     except Exception as e:
         print(f"[STRIPE] Erro ao criar Checkout Session (user #{usuario_id}, plano={slug}): {e}")
@@ -357,10 +377,10 @@ def criar_sessao_portal_cliente(usuario_id: int, base_url: str) -> tuple[str | N
     url_base = (os.getenv("APP_BASE_URL", "").strip() or base_url).rstrip("/")
 
     try:
-        portal = stripe.billing_portal.Session.create(
+        portal = _para_dict(stripe.billing_portal.Session.create(
             customer=customer_id,
             return_url=f"{url_base}/perfil",
-        )
+        ))
         return portal["url"], None
     except Exception as e:
         print(f"[STRIPE] Erro ao criar Billing Portal (user #{usuario_id}): {e}")
@@ -454,7 +474,7 @@ def sincronizar_checkout_session(session_id: str, usuario_id_esperado: int | Non
         return False, {}
 
     try:
-        sessao = stripe.checkout.Session.retrieve(session_id, expand=["subscription"])
+        sessao = _para_dict(stripe.checkout.Session.retrieve(session_id, expand=["subscription"]))
         status_pagamento = sessao.get("payment_status")
         status_sessao = sessao.get("status")
 
@@ -470,8 +490,8 @@ def sincronizar_checkout_session(session_id: str, usuario_id_esperado: int | Non
 
         customer_id = sessao.get("customer")
         sub = sessao.get("subscription")
-        sub_id = sub.get("id") if isinstance(sub, dict) else (getattr(sub, "id", None) or (sub if isinstance(sub, str) else None))
-        sub_status = (sub.get("status") if isinstance(sub, dict) else getattr(sub, "status", None)) or "active"
+        sub_id = sub.get("id") if isinstance(sub, dict) else (sub if isinstance(sub, str) else None)
+        sub_status = (sub.get("status") if isinstance(sub, dict) else None) or "active"
         expira_em = _extrair_period_end_subscription(sub)
         plano_tipo = metadata.get("plano_tipo") or identificar_plano_por_price_id(_extrair_price_id_subscription(sub))
 
@@ -529,7 +549,7 @@ def processar_webhook_stripe(payload_bytes: bytes, sig_header: str) -> tuple[boo
         return False, "STRIPE_WEBHOOK_SECRET não configurada", 500
 
     try:
-        evento = stripe.Webhook.construct_event(payload_bytes, sig_header, webhook_secret)
+        evento = _para_dict(stripe.Webhook.construct_event(payload_bytes, sig_header, webhook_secret))
     except ValueError:
         return False, "Payload inválido", 400
     except Exception as e:
@@ -556,7 +576,7 @@ def processar_webhook_stripe(payload_bytes: bytes, sig_header: str) -> tuple[boo
 
             if sub_id:
                 try:
-                    sub = stripe.Subscription.retrieve(sub_id)
+                    sub = _para_dict(stripe.Subscription.retrieve(sub_id))
                     sub_status = sub.get("status") or "active"
                     expira_em = _extrair_period_end_subscription(sub)
                     if not plano_tipo:
@@ -610,17 +630,17 @@ def processar_webhook_stripe(payload_bytes: bytes, sig_header: str) -> tuple[boo
             _atualizar_assinatura_bd(
                 usuario_id=None,
                 customer_id=obj.get("customer"),
-                subscription_id=obj.get("subscription"),
+                subscription_id=_extrair_subscription_id_invoice(obj),
                 status="past_due",
             )
 
         elif event_type == "invoice.payment_succeeded":
-            sub_id = obj.get("subscription")
+            sub_id = _extrair_subscription_id_invoice(obj)
             expira_em = None
             plano_tipo = None
             if sub_id:
                 try:
-                    sub = stripe.Subscription.retrieve(sub_id)
+                    sub = _para_dict(stripe.Subscription.retrieve(sub_id))
                     expira_em = _extrair_period_end_subscription(sub)
                     plano_tipo = (sub.get("metadata") or {}).get("plano_tipo") or identificar_plano_por_price_id(_extrair_price_id_subscription(sub))
                 except Exception:
