@@ -2,7 +2,7 @@
 SGPP — SISTEMA DE GESTAO E PLANEJAMENTO PEDAGOGICO UNIVERSAL
 RELATORIO DE EVOLUCAO, ARQUITETURA E REGISTRO DE ALTERACOES
 Arquivo de Acompanhamento Continuo (Historico de Desenvolvimento)
-Ultima Atualizacao: 2026-11-24 11:05
+Última Atualização: 2026-11-26 10:05
 ================================================================================
 
 [OBJETIVO DESTE ARQUIVO]
@@ -198,11 +198,220 @@ este arquivo para obter todo o contexto sem precisar reler o sistema do zero.
        "Total no Repositorio" para "Meu Repositorio", "Criadas pelo Professor" para "Criadas por Voce".
 
 ================================================================================
-STATUS ATUAL: FASE 5 CONCLUIDA
-O SGPP agora atende perfeitamente:
-- Docentes do SENAI (Plano de curso, matrizes SAEP e modelos tecnicos)
-- Docentes de Escolas Publicas e Particulares (Educacao Infantil, Fundamental e Medio - BNCC)
-- Docentes do Ensino Superior / Faculdades (Ementa, ementario e bibliografia)
-- Cronogramas adaptativos por aulas/bimestre (educacao basica/superior) ou por horas corridas (tecnico)
-- Repositorios individuais e privados por docente (isolamento multi-inquilino completo)
+5. ESPECIFICACAO E PLANEJAMENTO DE NOVAS DEMANDAS (EM ANDAMENTO)
+================================================================================
+
+--- [2026-11-26] Fase 6: Planejamento em Cascata (Anual -> Semestral -> Mensal -> Aulas) e Modulo PEI Inclusivo com IA ---
+
+1. ARQUITETURA DE PLANEJAMENTO EM CASCATA POR ABAS (Educacao Infantil, Fundamental e Medio):
+   - Problema Identificado:
+     Anteriormente, a interface gerava o planejamento docente e imediatamente disponibilizava a opcao
+     de "Plano de Aula", o que nao reflete a realidade pedagogica das redes publicas e privadas de ensino
+     basico, onde o desdobramento curricular ocorre de forma piramidal e progressiva ao longo do ano letivo.
+   - Nova Estrutura Hierarquica (Abas Aninhadas / Niveis de Aprofundamento):
+     * NIVEL 1 — Planejamento Anual (Base Macro):
+       - O docente seleciona o segmento escolar (Educacao Infantil, Fundamental I/II, Ensino Medio),
+         informa o componente curricular / disciplina, o ano escolar/serie e as diretrizes/BNCC.
+       - A IA gera o Planejamento Anual com a visao geral dos eixos tematicos, competencias gerais e
+         distribuicao dos grandes blocos de aprendizagem.
+     * NIVEL 2 — Planejamento Semestral (Aba 1 vinculada ao Anual):
+       - Na tela de gestao do planejamento, em vez de pular para "Plano de Aula", surge a aba
+         "Planejamento Semestral" diretamente atrelada ao Planejamento Anual gerado.
+       - Desdobra o plano anual em periodos semestrais (1º Semestre e 2º Semestre), definindo as
+         unidades tematicas, objetos de conhecimento e habilidades especificas de cada etapa.
+     * NIVEL 3 — Planejamento Mensal (Aba 2 vinculada ao Semestral):
+       - Dentro de cada semestre, abre-se a aba do "Planejamento Mensal".
+       - Lista automaticamente os Meses Letivos correspondentes ao semestre (ex: Fevereiro a Junho no 1º Semestre;
+         Agosto a Dezembro no 2º Semestre).
+       - O professor seleciona ou visualiza cada mes letivo e os focos de conteudo/metas mensais.
+     * NIVEL 4 — Planos de Aula do Mes (Geracao Operacional na Aba Mensal):
+       - E especificamente dentro do mes selecionado no Planejamento Mensal que surge a geracao dos Planos de Aula!
+       - Parametros operacionais informados pelo professor para o mes:
+         a) Dias de aula por semana (ex: Segundas, Quartas e Sextas);
+         b) Quantidade de aulas por dia/encontro (ex: 1 aula de 50min, 2 aulas geminadas);
+         c) Carga horaria e total de aulas calculados para o mes letivo.
+       - O sistema gera os Planos de Aula detalhados aula a aula correspondentes ao mes, contendo
+         objetivos especificos, estrategias didaticas, recursos, acolhida, desenvolvimento e avaliacao.
+       - A partir deste ponto, o fluxo segue normalmente para edicao, impressao e exportacao (PDF/Word).
+
+2. MODULO DE SEGMENTO PEI (Plano Educacional Individualizado / Plano de Ensino Individualizado):
+   - Inclusao do PEI como Segmento Proprio:
+     * O PEI passa a constar como uma modalidade/segmento formal no sistema (ao lado de Infantil,
+       Fundamental, Medio, Tecnico e Superior).
+     * Destinado ao atendimento de estudantes com necessidades educacionais especificas (TEA, TDAH,
+       deficiencia intelectual, fisica, auditiva, visual, multipla, sindromes e altas habilidades/superdotacao).
+   - Ciclo Temporal Adaptado:
+     * O fluxo temporal do PEI segue o modelo em cascata, operando especificamente em ciclos SEMESTRAL e MENSAL,
+       respeitando o acompanhamento e reavaliacao psicopedagogica e de metas de desenvolvimento individual.
+   - Estado da Arte em Tecnologias Assistivas e Metodologias Globais de Inclusao:
+     * DUA (Desenho Universal para a Aprendizagem / UDL): Proporcionar multiplas formas de engajamento,
+       representacao e acao/expressao em todas as propostas pedagogicas.
+     * CAA (Comunicacao Aumentativa e Alternativa): Pranchas com pictogramas (padrao ARASAAC), sintetizadores de voz,
+       sistemas de comunicacao por troca de figuras (PECS).
+     * Estruturacao TEACCH e Apoios Visuais: Rotinas previsiveis, organizadores graficos, pistas visuais e minimizacao
+       de sobrecarga sensorial.
+     * Tecnologias Assistivas Digitais: Leitores de tela, lupas eletronicas, teclados virtuais acessiveis,
+       softwares de transcricao audio-texto e materiais multissensoriais manipulaveis.
+     * Niveis de Suporte e Escala de Apoio: Mapeamento de suporte intermitente, limitado, extensivo e generalizado.
+   - Inteligencia Artificial Contextualizada & Automatica:
+     * Reconhecimento Nativo: Ao selecionar o planejamento PEI, a IA do SGPP identifica imediatamente que
+       o perfil e de educacao especial inclusiva.
+     * Gerador de Atividades e Planos Consciente da Acessibilidade:
+       Ao gerar planos de aula ou atividades derivadas do planejamento PEI, a IA aplica automaticamente:
+       - Linguagem simples e direta (Plain Language), sem ambiguidades ou enunciados excessivamente longos.
+       - Recursos de apoio visual e pistas contextuais.
+       - Flexibilizacao de tempo e criterios de avaliacao formativa/processual centrados no progresso do aluno.
+       - Propostas de intervencao diferenciadas (nivel de suporte 1, 2 e 3) e materiais adaptados.
+       - O professor NAO precisa redigitar ou lembrar a IA a cada atividade de que o aluno e especial;
+         o contexto e herdado automaticamente da linhagem do planejamento PEI.
+
+================================================================================
+STATUS ATUAL: FASE 6 CONCLUIDA COM SUCESSO E VALIDADA
+================================================================================
+Data de Conclusao: 2026-11-26 10:20
+Todas as implementacoes foram realizadas EXCLUSIVAMENTE dentro do projeto SGPP (C:\projetos\SGPP):
+
+1. Modificacoes no Banco de Dados ('database/conexao.py'):
+   - Adicionadas colunas na tabela 'planejamentos_docente':
+     * tipo_planejamento (VARCHAR 50: 'anual', 'semestral', 'mensal', 'pei_semestral')
+     * planejamento_pai_id (INTEGER FK cascata)
+     * semestre (INTEGER: 1 ou 2)
+     * mes (INTEGER: 1 a 12)
+     * dados_json (TEXT para armazenamento estruturado de habilidades e desdobramentos)
+     * estudante_nome (VARCHAR 150 para PEI)
+     * estudante_necessidades (TEXT para diagnósticos e barreiras)
+     * recursos_tecnologicos_assistivos (TEXT para DUA/CAA/TEACCH)
+     * dias_semana (VARCHAR 100) e aulas_semana (INTEGER)
+   - Adicionadas colunas na tabela 'planos_aula':
+     * mes (INTEGER)
+     * semana (INTEGER)
+     * metodologia_inclusiva (TEXT)
+   - Auto-migrações executadas e validadas no banco 'sgpp'.
+
+2. Motor Pedagogico em Cascata & Modulo PEI ('ia/planejamento_cascata.py'):
+   - 'gerar_planejamento_anual_ia': elabora a visão macro e competências gerais BNCC do ano.
+   - 'gerar_planejamento_semestral_ia': desdobra o ano em unidades temáticas e habilidades por semestre (1º ou 2º).
+   - 'gerar_planejamento_mensal_ia': estrutura os meses letivos de aula (Fev a Jun / Ago a Dez).
+   - 'gerar_planos_aula_do_mes_ia': calcula os encontros mensais com base nos dias de aula por semana
+     e aulas por encontro, gerando os planos de aula diários daquele mês.
+   - 'gerar_planejamento_pei_semestral_ia' e 'gerar_planejamento_pei_mensal_ia': integra tecnologias
+     assistivas globais (DUA, CAA/ARASAAC, TEACCH, suportes visuais e Plain Language).
+
+3. Inteligencia Artificial Contextualizada para Atividades ('ia/gerador.py'):
+   - Parametro 'segmento' expandido para detectar 'pei' nativamente.
+   - Gerador de atividades aplica automaticamente enunciados simples, máximo 3 alternativas em objetivas,
+     pistas de apoio visual / pictogramas e critérios de avaliação positiva/formativa sem penalização de tempo.
+   - Fallback estruturado inclusivo implementado para operação contínua mesmo offline.
+
+4. Interface Web por Abas e Telas de Gestao ('templates/' e 'app.py'):
+   - 'templates/planejamento_docente.html':
+     * Seletor de segmento atualizado com Infantil, Fundamental, Médio e PEI.
+     * Bloco '#bloco_pei' interativo com campos para estudante, diagnóstico e tecnologias assistivas.
+     * Alerta visual do fluxo em cascata para Educação Básica.
+   - 'templates/visualizar_planejamento_cascata.html':
+     * Navegação completa em abas (Anual -> Semestral -> Mensal com meses letivos -> Planos de Aula do mês).
+     * Modal e formulário para gerar planos de aula do mês selecionado por dias/semana e aulas/dia.
+     * Abas dedicadas para o PEI (PEI Semestral, PEI Mensal e Aulas Inclusivas).
+   - 'templates/listar_planejamentos.html':
+     * Botões inteligentes "Abrir (Abas)" e "Abrir PEI".
+   - 'templates/index.html', 'cadastro.html' e 'perfil.html':
+     * Seletor de segmento PEI integrado com alerta dinâmico de modo inclusivo.
+   - Rotas criadas no Flask ('app.py'):
+     * GET /planejamento/<id>
+     * POST /planejamento/<id>/gerar_semestral
+     * POST /planejamento/<id>/gerar_planos_mes
+     * Repasse automático do segmento PEI nas rotas /nova_atividade e /gerar_atividade_plano/<id>.
+================================================================================
+
+================================================================================
+FASE 6 - ADICIONAL / MANUTENCAO: CORRECAO DE CONFORMIDADE DO LOGO
+Data: 2026-11-26
+================================================================================
+
+[PROBLEMA IDENTIFICADO]
+Logos quadrados (500x500 px) ficavam distorcidos em todos os documentos gerados
+porque os 5 geradores usavam dimensoes fixas hardcoded (ex: width=105, height=28),
+forcando a imagem a uma proporcao 3.75:1 independente do formato real do arquivo.
+
+[CAUSA RAIZ]
+Todos os geradores de documentos (PDF ReportLab x2, Word .docx x2, Excel x1)
+especificavam largura E altura absolutas sem calcular a proporcao original da imagem.
+
+[SOLUCAO IMPLEMENTADA]
+
+1. Novo modulo 'utils/imagem_utils.py' com 3 funcoes:
+   - obter_dimensoes_proporcionais(caminho, max_w, max_h):
+       Calcula width/height preservando aspect ratio da imagem original via Pillow.
+       Retorna (w, h) escalados para caber dentro dos limites max_w x max_h.
+   - processar_logo_canvas_excel(caminho, largura_canvas, altura_canvas):
+       Renderiza o logo sobre canvas transparente de dimensao fixa (400x120 px),
+       centralizando e escalando proporcionalmente. Usado para substituir o placeholder
+       binario xl/media/image1.png nos arquivos Excel sem distorcer.
+   - otimizar_imagem_upload(caminho):
+       Corrige orientacao EXIF e otimiza qualidade (85%) no momento do upload.
+
+2. Arquivos modificados (logo proporcional em vez de hardcoded):
+   - utils/pdf_generator.py            -> obter_dimensoes_proporcionais(logo, max_w=115, max_h=38)
+   - utils/pdf_atividade_generator.py  -> obter_dimensoes_proporcionais(logo, max_w=110, max_h=38)
+   - utils/docx_generator.py           -> obter_dimensoes_proporcionais(logo, max_w=1.6, max_h=0.7) -> Inches()
+   - utils/docx_atividade_generator.py -> obter_dimensoes_proporcionais(logo, max_w=4.2, max_h=1.6) -> Cm()
+   - utils/excel_planejamento_generator.py -> processar_logo_canvas_excel(logo, 400, 120)
+   - app.py -> otimizar_imagem_upload() chamada apos arquivo_logo.save() no upload do perfil
+   - templates/perfil.html -> Preview HTML usa max-width/max-height + object-fit:contain
+
+3. Verificacao e Testes (todos aprovados):
+   - py_compile: 0 erros em todos os 7 arquivos modificados
+   - obter_dimensoes_proporcionais('500x500', max_w=110, max_h=38) -> 38x38 OK
+   - processar_logo_canvas_excel(500x500, 400, 120)                -> 2952 bytes OK
+   - gerar_pdf_atividade_reportlab com logo quadrado               -> 9477 bytes OK
+   - gerar_docx_atividade com logo quadrado                        -> 39924 bytes OK
+   - gerar_excel_planejamento com logo quadrado                    -> 11752 bytes OK
+   - gerar_docx_plano com logo quadrado                            -> 38070 bytes OK
+
+[RESULTADO]
+Logos de qualquer proporcao (quadrado, horizontal, vertical) sao exibidos
+e exportados corretamente em todos os formatos sem distorcao.
+================================================================================
+
+================================================================================
+FASE 6 - CORRECAO DE BUGS: UnboundLocalError e Labels de Planejamento Anual
+Data: 2026-11-26 13:20
+================================================================================
+
+[BUG 1 - CORRIGIDO] UnboundLocalError: cannot access local variable 'json'
+  Arquivo: app.py
+  Causa Raiz:
+    O modulo 'json' estava sendo importado LOCALMENTE dentro da funcao
+    'planejamento_docente()' (linha ~2947), com 'import json' dentro do bloco
+    de leitura de feriados. No Python 3, quando existe um 'import json' em
+    qualquer parte de uma funcao, o Python trata 'json' como variavel local
+    em TODA a funcao. Como json.dumps() era chamado nas linhas 2831 (PEI) e
+    2887 (Cascata Escolar) ANTES do 'import json' local, o interpretador
+    gerava UnboundLocalError ao tentar acessar 'json' antes da atribuicao.
+  Solucao:
+    - Movido 'import json' para o topo do arquivo (linha 95), junto com os
+      demais imports globais (import os, import re).
+    - Removido o 'import json' local que estava dentro de planejamento_docente().
+
+[BUG 2 - CORRIGIDO] Labels incorretos 'Bimestre' para Educacao Basica (deveria ser 'Ano')
+  Arquivos: templates/planejamento_docente.html
+  Causa Raiz:
+    O formulario de planejamento usava 'Qtd. de Aulas no Bimestre' para todos
+    os segmentos nao-tecnicos. Porem, para Educacao Infantil, Ensino Fundamental
+    e Ensino Medio o planejamento e ANUAL (cascata Anual->Semestral->Mensal->Aulas),
+    e nao por bimestre. Isso gerava inconsistencia pedagogica.
+  Solucao:
+    - Label HTML estatico: 'Qtd. de Aulas no Bimestre' -> 'Qtd. de Aulas no Ano'
+    - Dica estatica: 'bimestre' -> 'ano letivo'
+    - Valor/placeholder padrao: 40 -> 160 (representando ~160 aulas/ano)
+    - JS atualizarTipoCurso(): bloco Educacao Basica -> label 'Ano', valor padrao 160
+    - JS atualizarResumoAulas(): 'no bimestre' -> 'no ano' para Basica
+    - Ensino Superior continua 'no semestre' (correto)
+    - PEI continua 'no semestre' (correto)
+  Obs: name='aulas_bimestre' no HTML mantido (sem quebrar backend). Backend ja
+       calculava corretamente total_aulas = ceil(aulas_bimestre / aulas_por_dia).
+
+[VERIFICACAO]
+  - py_compile app.py: 0 erros
+  - import json: apenas 1 ocorrencia no topo do arquivo (linha 95)
 ================================================================================

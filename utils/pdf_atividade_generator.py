@@ -23,6 +23,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+from utils.imagem_utils import obter_dimensoes_proporcionais
 
 
 class NumberedCanvas(canvas.Canvas):
@@ -209,9 +210,12 @@ def gerar_pdf_atividade_reportlab(
 
     if logo_path and os.path.exists(logo_path):
         try:
-            img_logo = Image(logo_path, width=105, height=28)
-            img_logo.hAlign = "LEFT"
-            t_header = Table([[img_logo, header_elements]], colWidths=[115, 408])
+            larg_logo, alt_logo = obter_dimensoes_proporcionais(logo_path, max_w=110, max_h=38)
+            img_logo = Image(logo_path, width=larg_logo, height=alt_logo)
+            img_logo.hAlign = "CENTER"
+            col_logo_w = max(115, larg_logo + 5)
+            col_texto_w = 523 - col_logo_w
+            t_header = Table([[img_logo, header_elements]], colWidths=[col_logo_w, col_texto_w])
             t_header.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("ALIGN", (1, 0), (1, 0), "CENTER"),

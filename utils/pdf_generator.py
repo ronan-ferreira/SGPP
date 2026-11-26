@@ -22,6 +22,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
+from utils.imagem_utils import obter_dimensoes_proporcionais
 
 
 class PlanoNumberedCanvas(canvas.Canvas):
@@ -182,9 +183,12 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
     logo_path = _localizar_logo()
     titulo_texto = html.escape(str(titulo or "PLANO DE AULA"))
     if logo_path:
-        img_logo = Image(logo_path, width=115, height=29)
-        img_logo.hAlign = "LEFT"
-        t_header = Table([[img_logo, Paragraph(f"<b>{titulo_texto}</b>", style_titulo)]], colWidths=[125, 398])
+        larg_logo, alt_logo = obter_dimensoes_proporcionais(logo_path, max_w=115, max_h=38)
+        img_logo = Image(logo_path, width=larg_logo, height=alt_logo)
+        img_logo.hAlign = "CENTER"
+        col_logo_w = max(120, larg_logo + 5)
+        col_texto_w = 523 - col_logo_w
+        t_header = Table([[img_logo, Paragraph(f"<b>{titulo_texto}</b>", style_titulo)]], colWidths=[col_logo_w, col_texto_w])
         t_header.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (1, 0), (1, 0), "CENTER"),

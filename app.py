@@ -60,6 +60,19 @@ from utils.docx_planejamento_generator import gerar_docx_planejamento
 from utils.pdf_plano_reader import estruturar_dados_plano_pdf
 from utils.matriz_saep_reader import ler_matriz_saep
 from utils.planejamento_docente_reader import ler_excel_planejamento_docente
+from utils.imagem_utils import otimizar_imagem_upload, processar_logo_canvas_excel
+from ia.planejamento_cascata import (
+    gerar_planejamento_anual_ia,
+    gerar_planejamento_semestral_ia,
+    gerar_planejamento_mensal_ia,
+    gerar_planos_aula_do_mes_ia,
+    gerar_planejamento_pei_semestral_ia,
+    gerar_planejamento_pei_mensal_ia,
+    obter_meses_por_semestre,
+    MESES_LETIVOS_SEMESTRE_1,
+    MESES_LETIVOS_SEMESTRE_2,
+    TODOS_MESES_LETIVOS,
+)
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
@@ -79,6 +92,7 @@ from utils.security import (
 )
 import os
 import re
+import json
 
 
 IS_PRODUCTION = (
@@ -446,6 +460,7 @@ def perfil():
                     os.makedirs(pasta_logos, exist_ok=True)
                     caminho_salvar = os.path.join(pasta_logos, nome_seguro)
                     arquivo_logo.save(caminho_salvar)
+                    otimizar_imagem_upload(caminho_salvar)
                     upload_arquivo_local(
                         caminho_salvar,
                         f"logos/{nome_seguro}",
@@ -789,7 +804,11 @@ def index():
             else:
                 # Completar com IA / banco externo (Usuário disse SIM!)
                 faltantes = quantidade - qtd_disp
-                segmento_user = session.get("segmento", "")
+                segmento_form = request.form.get("segmento", "").strip()
+                segmento_user = segmento_form or session.get("segmento", "")
+                if "pei" in curso.lower() or "pei" in conteudo.lower() or "individualizado" in curso.lower():
+                    segmento_user = "pei"
+
                 texto_ia = gerar_atividade(
                     conteudo,
                     dificuldade,
@@ -812,7 +831,11 @@ def index():
 
         else:
             # Geração direta com IA / Banco Externo
-            segmento_user = session.get("segmento", "")
+            segmento_form = request.form.get("segmento", "").strip()
+            segmento_user = segmento_form or session.get("segmento", "")
+            if "pei" in curso.lower() or "pei" in conteudo.lower() or "individualizado" in curso.lower():
+                segmento_user = "pei"
+
             atividade_gerada = gerar_atividade(
                 conteudo,
                 dificuldade,
@@ -2415,6 +2438,10 @@ def gerar_atividade_plano(id):
     print(f"🤖 Gerando atividade a partir do Plano #{id}")
     print(f"   Curso: {curso_ident} | UC: {uc_ident} | Formato: {tipo} | Fonte: {fonte} | Autoria: {autoria} | Dificuldade: {dificuldade} | Qtd: {quantidade}")
 
+    # Detecção contextual se é PEI / Educação Especial
+    eh_pei_plano = "pei" in (plano[3] or "").lower() or "pei" in (nome_curso or "").lower() or "individualizado" in str(conteudo).lower() or (len(plano) > 8 and "dua" in str(plano[8] or "").lower())
+    segmento_plano = "pei" if eh_pei_plano else session.get("segmento", "fundamental")
+
     # ========================================================
     # RESOLUÇÃO DAS QUESTÕES DE ACORDO COM FONTE E AUTORIA
     # ========================================================
@@ -2440,7 +2467,7 @@ def gerar_atividade_plano(id):
         else:
             # Completa as faltantes via IA
             faltantes = quantidade - qtd_encontrada
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes, segmento=segmento_plano)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2455,7 +2482,7 @@ def gerar_atividade_plano(id):
 
     elif fonte == "externo":
         # Geração externa via IA
-        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade)
+        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade, segmento=segmento_plano)
         salvar_questoes_ia_no_repositorio(
             texto_atividade=atividade,
             curso=curso_ident,
@@ -2484,7 +2511,7 @@ def gerar_atividade_plano(id):
         qtd_ia_necessaria = quantidade - qtd_repo
         texto_ia = ""
         if qtd_ia_necessaria > 0:
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria, segmento=segmento_plano)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2768,6 +2795,130 @@ def planejamento_docente():
             print("[INFO] Nenhum arquivo ou ementa fornecida. A IA preencherá automaticamente.")
 
         # ----------------------------------------------------------
+        # 1.1 ROTA ESPECIALIZADA: PEI (Educação Especial Inclusiva)
+        # ----------------------------------------------------------
+        eh_pei = "PEI" in modalidade_upper or "INDIVIDUALIZADO" in modalidade_upper
+        eh_cascata_escolar = any(k in modalidade_upper for k in ["FUNDAMENTAL", "MÉDIO", "MEDIO", "INFANTIL"])
+
+        if eh_pei:
+            estudante_nome = request.form.get("estudante_nome", "").strip() or "Estudante"
+            estudante_necessidades = request.form.get("estudante_necessidades", "").strip() or "Educação Especial Inclusiva"
+            recursos_tecnologicos_assistivos = request.form.get("recursos_tecnologicos_assistivos", "").strip() or "DUA, CAA (ARASAAC), Apoios Visuais TEACCH"
+            semestre_pei = int(request.form.get("semestre_pei") or 1)
+
+            print(f"[PEI] Gerando PEI Semestral para {estudante_nome} ({estudante_necessidades})...")
+            texto_pei, dados_pei = gerar_planejamento_pei_semestral_ia(
+                aluno_nome=estudante_nome,
+                necessidades=estudante_necessidades,
+                segmento=modalidade,
+                componente=unidade_curricular,
+                semestre=semestre_pei,
+                tecnologias_assistivas=recursos_tecnologicos_assistivos,
+                serie=nome_curso
+            )
+
+            conn, cursor = get_cursor()
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO cursos_plano (nome_curso, carga_horaria, aulas_por_dia, usuario_id)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (f"PEI — {estudante_nome} ({unidade_curricular})", carga_horaria, horas_por_dia, session["usuario_id"])
+                )
+                curso_id = cursor.fetchone()[0]
+
+                payload_json = json.dumps({
+                    "texto_pei_semestral": texto_pei,
+                    "dados": dados_pei,
+                    "semestres": {str(semestre_pei): texto_pei},
+                    "mensais": {}
+                }, ensure_ascii=False)
+
+                cursor.execute(
+                    """
+                    INSERT INTO planejamentos_docente (
+                        nome_curso, unidade_curricular, turma, unidade_escolar,
+                        carga_horaria, horas_por_dia, data_inicio, data_fim, total_aulas,
+                        arquivo_excel, curso_id, usuario_id, modalidade,
+                        tipo_planejamento, semestre, estudante_nome, estudante_necessidades,
+                        recursos_tecnologicos_assistivos, dados_json
+                    )
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING id
+                    """,
+                    (
+                        nome_curso, unidade_curricular, codigo_turma, unidade_escolar,
+                        carga_horaria, horas_por_dia, data_inicio_str or None, data_fim_str or None, total_aulas,
+                        None, curso_id, session["usuario_id"], modalidade,
+                        "pei_semestral", semestre_pei, estudante_nome, estudante_necessidades,
+                        recursos_tecnologicos_assistivos, payload_json
+                    )
+                )
+                planejamento_id = cursor.fetchone()[0]
+                conn.commit()
+                print(f"[OK] PEI Semestral #{planejamento_id} criado com sucesso!")
+            finally:
+                release_cursor(conn, cursor)
+
+            return redirect(f"/planejamento/{planejamento_id}")
+
+        elif eh_cascata_escolar:
+            print(f"[CASCATA] Gerando Planejamento Anual (Educação Básica) para {nome_curso} - {unidade_curricular}...")
+            texto_anual, dados_anual = gerar_planejamento_anual_ia(
+                nome_curso=nome_curso,
+                componente=unidade_curricular,
+                segmento=modalidade,
+                ementa_digitada=conteudo_digitado
+            )
+
+            conn, cursor = get_cursor()
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO cursos_plano (nome_curso, carga_horaria, aulas_por_dia, usuario_id)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (f"{nome_curso} — {unidade_curricular}", carga_horaria, horas_por_dia, session["usuario_id"])
+                )
+                curso_id = cursor.fetchone()[0]
+
+                payload_json = json.dumps({
+                    "texto_anual": texto_anual,
+                    "dados": dados_anual,
+                    "semestres": {},
+                    "mensais": {}
+                }, ensure_ascii=False)
+
+                cursor.execute(
+                    """
+                    INSERT INTO planejamentos_docente (
+                        nome_curso, unidade_curricular, turma, unidade_escolar,
+                        carga_horaria, horas_por_dia, data_inicio, data_fim, total_aulas,
+                        arquivo_excel, curso_id, usuario_id, modalidade,
+                        tipo_planejamento, dados_json
+                    )
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING id
+                    """,
+                    (
+                        nome_curso, unidade_curricular, codigo_turma, unidade_escolar,
+                        carga_horaria, horas_por_dia, data_inicio_str or None, data_fim_str or None, total_aulas,
+                        None, curso_id, session["usuario_id"], modalidade,
+                        "anual", payload_json
+                    )
+                )
+                planejamento_id = cursor.fetchone()[0]
+                conn.commit()
+                print(f"[OK] Planejamento Anual em Cascata #{planejamento_id} criado com sucesso!")
+            finally:
+                release_cursor(conn, cursor)
+
+            return redirect(f"/planejamento/{planejamento_id}")
+
+        # ----------------------------------------------------------
         # 2. Lê a Matriz SAEP (opcional)
         # ----------------------------------------------------------
         arquivo_matriz = request.files.get("arquivo_matriz")
@@ -2794,7 +2945,6 @@ def planejamento_docente():
         feriados_json = request.form.get("feriados_json", "[]")
         feriados = []
         try:
-            import json
             itens_feriados = json.loads(feriados_json) if feriados_json else []
             for item in itens_feriados:
                 if isinstance(item, dict) and "data" in item:
@@ -3220,6 +3370,326 @@ def gerar_planos_planejamento(planejamento_id):
         print(f"[AVISO] Erro ao consolidar DOCX/PDF: {e}")
 
     return redirect(f"/curso/{curso_id}")
+
+
+# ==============================================================================
+# ROTAS DE PLANEJAMENTO EM CASCATA & MÓDULO PEI INCLUSIVO (FASE 6)
+# ==============================================================================
+
+@app.route("/planejamento/<int:planejamento_id>")
+def visualizar_planejamento_cascata(planejamento_id):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT id, nome_curso, unidade_curricular, turma, unidade_escolar,
+                   carga_horaria, horas_por_dia, data_inicio, data_fim, total_aulas,
+                   arquivo_excel, usuario_id, data_criacao, curso_id, modalidade,
+                   tipo_planejamento, planejamento_pai_id, semestre, mes,
+                   dados_json, estudante_nome, estudante_necessidades, recursos_tecnologicos_assistivos
+            FROM planejamentos_docente
+            WHERE id = %s AND usuario_id = %s
+            """,
+            (planejamento_id, session["usuario_id"])
+        )
+        plan = cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+    if not plan:
+        flash("Planejamento não encontrado.", "warning")
+        return redirect("/listar_planejamentos")
+
+    modalidade = plan[14] or ""
+    tipo_planejamento = plan[15] or "anual"
+    eh_pei = "PEI" in (modalidade or "").upper() or "INDIVIDUALIZADO" in (modalidade or "").upper() or tipo_planejamento == "pei_semestral"
+
+    # Carrega dados_json
+    dados_dict = {}
+    if plan[19]:
+        try:
+            dados_dict = json.loads(plan[19])
+        except Exception:
+            dados_dict = {}
+
+    semestre_selecionado = int(request.args.get("semestre") or plan[17] or 1)
+
+    meses_semestre_1 = MESES_LETIVOS_SEMESTRE_1
+    meses_semestre_2 = MESES_LETIVOS_SEMESTRE_2
+    meses_letivos_todos = TODOS_MESES_LETIVOS
+
+    mes_ativo = request.args.get("mes_nome")
+    mes_numero_ativo = request.args.get("mes")
+    if not mes_ativo:
+        mes_ativo = "Fevereiro" if semestre_selecionado == 1 else "Agosto"
+        mes_numero_ativo = 2 if semestre_selecionado == 1 else 8
+    else:
+        mes_numero_ativo = int(mes_numero_ativo or 2)
+
+    texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or "Planejamento Curricular Anual estruturado conforme a BNCC."
+    texto_pei_semestral = dados_dict.get("texto_pei_semestral") or dados_dict.get("texto") or texto_anual
+
+    semestres_salvos = dados_dict.get("semestres", {})
+    texto_semestral = semestres_salvos.get(str(semestre_selecionado), "")
+
+    mensais_salvos = dados_dict.get("mensais", {})
+    texto_mensal = mensais_salvos.get(mes_ativo, "")
+    texto_pei_mensal = mensais_salvos.get(mes_ativo, "")
+
+    conn, cursor = get_cursor()
+    planos_mes = []
+    contagem_planos_por_mes = {}
+    try:
+        # Busca contagem de planos por mês
+        cursor.execute(
+            """
+            SELECT pa.mes, pa.tema, COUNT(*)
+            FROM planos_aula pa
+            WHERE pa.planejamento_id = %s OR (pa.curso_id = %s AND %s IS NOT NULL)
+            GROUP BY pa.mes, pa.tema
+            """,
+            (planejamento_id, plan[13], plan[13])
+        )
+        for row in cursor.fetchall():
+            m_num = row[0]
+            t_tema = row[1] or ""
+            for m in TODOS_MESES_LETIVOS:
+                if m["numero"] == m_num or m["nome"].lower() in t_tema.lower():
+                    contagem_planos_por_mes[m["nome"]] = contagem_planos_por_mes.get(m["nome"], 0) + row[2]
+
+        cursor.execute(
+            """
+            SELECT id, curso_id, dia, tema, plano_gerado, usuario_id, semana, mes
+            FROM planos_aula
+            WHERE (planejamento_id = %s OR (curso_id = %s AND %s IS NOT NULL))
+              AND (mes = %s OR tema ILIKE %s)
+            ORDER BY dia ASC
+            """,
+            (planejamento_id, plan[13], plan[13], mes_numero_ativo, f"%{mes_ativo}%")
+        )
+        planos_mes = cursor.fetchall()
+    finally:
+        release_cursor(conn, cursor)
+
+    return render_template(
+        "visualizar_planejamento_cascata.html",
+        planejamento=plan,
+        modalidade=modalidade,
+        eh_pei=eh_pei,
+        estudante_nome=plan[20],
+        estudante_necessidades=plan[21],
+        recursos_tecnologicos_assistivos=plan[22],
+        semestre_selecionado=semestre_selecionado,
+        mes_ativo=mes_ativo,
+        mes_numero_ativo=mes_numero_ativo,
+        meses_semestre_1=meses_semestre_1,
+        meses_semestre_2=meses_semestre_2,
+        meses_letivos_todos=meses_letivos_todos,
+        texto_anual=texto_anual,
+        texto_semestral=texto_semestral,
+        texto_mensal=texto_mensal,
+        texto_pei_semestral=texto_pei_semestral,
+        texto_pei_mensal=texto_pei_mensal,
+        planos_mes=planos_mes,
+        contagem_planos_por_mes=contagem_planos_por_mes
+    )
+
+
+@app.route("/planejamento/<int:planejamento_id>/gerar_semestral", methods=["POST"])
+def gerar_semestral_planejamento(planejamento_id):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    semestre = int(request.form.get("semestre") or 1)
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            "SELECT id, nome_curso, unidade_curricular, modalidade, dados_json FROM planejamentos_docente WHERE id = %s AND usuario_id = %s",
+            (planejamento_id, session["usuario_id"])
+        )
+        plan = cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+    if not plan:
+        return "Planejamento não encontrado", 404
+
+    dados_dict = {}
+    if plan[4]:
+        try:
+            dados_dict = json.loads(plan[4])
+        except Exception:
+            dados_dict = {}
+
+    texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or ""
+    texto_sem, dados_sem = gerar_planejamento_semestral_ia(
+        planejamento_anual_texto=texto_anual,
+        componente=plan[2],
+        nome_curso=plan[1],
+        semestre=semestre
+    )
+
+    if "semestres" not in dados_dict:
+        dados_dict["semestres"] = {}
+    dados_dict["semestres"][str(semestre)] = texto_sem
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            "UPDATE planejamentos_docente SET dados_json = %s WHERE id = %s",
+            (json.dumps(dados_dict, ensure_ascii=False), planejamento_id)
+        )
+        conn.commit()
+    finally:
+        release_cursor(conn, cursor)
+
+    return redirect(f"/planejamento/{planejamento_id}?semestre={semestre}")
+
+
+@app.route("/planejamento/<int:planejamento_id>/gerar_planos_mes", methods=["POST"])
+def gerar_planos_mes_planejamento(planejamento_id):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    mes_nome = request.form.get("mes_nome", "Fevereiro")
+    mes_numero = int(request.form.get("mes_numero") or 2)
+    semestre = int(request.form.get("semestre") or 1)
+    dias_semana = request.form.get("dias_semana", "Segunda, Quarta")
+    aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
+    duracao_aula = int(request.form.get("duracao_aula") or 50)
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT id, nome_curso, unidade_curricular, modalidade, curso_id,
+                   dados_json, estudante_nome, estudante_necessidades, recursos_tecnologicos_assistivos
+            FROM planejamentos_docente
+            WHERE id = %s AND usuario_id = %s
+            """,
+            (planejamento_id, session["usuario_id"])
+        )
+        plan = cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+    if not plan:
+        return "Planejamento não encontrado", 404
+
+    modalidade = plan[3] or ""
+    curso_id = plan[4]
+    dados_dict = {}
+    if plan[5]:
+        try:
+            dados_dict = json.loads(plan[5])
+        except Exception:
+            dados_dict = {}
+
+    eh_pei = "PEI" in modalidade.upper() or "INDIVIDUALIZADO" in modalidade.upper()
+    aluno_nome = plan[6] or "Estudante"
+    necessidades = plan[7] or "Educação Especial Inclusiva"
+
+    # Garante que o curso_id exista
+    if not curso_id:
+        conn, cursor = get_cursor()
+        try:
+            nome_c = f"PEI — {aluno_nome} ({plan[2]})" if eh_pei else f"{plan[1]} — {plan[2]}"
+            cursor.execute(
+                """
+                INSERT INTO cursos_plano (nome_curso, carga_horaria, aulas_por_dia, usuario_id)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (nome_c, 80, aulas_por_dia, session["usuario_id"])
+            )
+            curso_id = cursor.fetchone()[0]
+            cursor.execute("UPDATE planejamentos_docente SET curso_id = %s WHERE id = %s", (curso_id, planejamento_id))
+            conn.commit()
+        finally:
+            release_cursor(conn, cursor)
+
+    # 1. Gera ou recupera o planejamento mensal
+    mensais_dict = dados_dict.setdefault("mensais", {})
+    if mes_nome not in mensais_dict:
+        if eh_pei:
+            txt_mensal, _ = gerar_planejamento_pei_mensal_ia(
+                pei_semestral_texto=dados_dict.get("texto_pei_semestral", ""),
+                aluno_nome=aluno_nome,
+                necessidades=necessidades,
+                componente=plan[2],
+                mes_nome=mes_nome,
+                numero_mes=mes_numero
+            )
+        else:
+            txt_mensal, _ = gerar_planejamento_mensal_ia(
+                planejamento_semestral_texto=dados_dict.get("semestres", {}).get(str(semestre), dados_dict.get("texto_anual", "")),
+                componente=plan[2],
+                nome_curso=plan[1],
+                mes_nome=mes_nome,
+                numero_mes=mes_numero
+            )
+        mensais_dict[mes_nome] = txt_mensal
+
+    # 2. Gera os planos de aula daquele mês
+    planos_gerados, total_encontros, total_aulas = gerar_planos_aula_do_mes_ia(
+        planejamento_mensal_texto=mensais_dict[mes_nome],
+        componente=plan[2],
+        nome_curso=plan[1],
+        mes_nome=mes_nome,
+        dias_semana=dias_semana,
+        aulas_por_dia=aulas_por_dia,
+        duracao_aula=duracao_aula,
+        eh_pei=eh_pei,
+        dados_pei={"nome": aluno_nome, "necessidades": necessidades}
+    )
+
+    # 3. Salva os planos de aula vinculados no banco de dados
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            """
+            DELETE FROM planos_aula
+            WHERE (planejamento_id = %s OR curso_id = %s)
+              AND (mes = %s OR tema ILIKE %s)
+            """,
+            (planejamento_id, curso_id, mes_numero, f"%{mes_nome}%")
+        )
+
+        for p in planos_gerados:
+            cursor.execute(
+                """
+                INSERT INTO planos_aula (
+                    curso_id, dia, tema, plano_gerado, usuario_id,
+                    planejamento_id, mes, semana, metodologia_inclusiva
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    curso_id,
+                    p["dia"],
+                    p["tema"],
+                    p["conteudo"],
+                    session["usuario_id"],
+                    planejamento_id,
+                    mes_numero,
+                    p.get("semana", 1),
+                    "DUA/CAA/TEACCH" if eh_pei else None
+                )
+            )
+
+        cursor.execute(
+            "UPDATE planejamentos_docente SET dados_json = %s, dias_semana = %s, aulas_semana = %s WHERE id = %s",
+            (json.dumps(dados_dict, ensure_ascii=False), dias_semana, aulas_por_dia, planejamento_id)
+        )
+        conn.commit()
+    finally:
+        release_cursor(conn, cursor)
+
+    return redirect(f"/planejamento/{planejamento_id}?mes={mes_numero}&mes_nome={mes_nome}&semestre={semestre}")
 
 
 # =========================
