@@ -64,11 +64,12 @@
                                 Segmento / Nível <span class="text-danger">*</span>
                             </label>
                             <select name="modalidade" id="modalidade" class="form-select form-select-lg" onchange="atualizarTipoCurso()" required>
-                                <option value="ENSINO FUNDAMENTAL" {% if session.get('segmento') == 'fundamental' %}selected{% endif %}>Ensino Fundamental (BNCC)</option>
-                                <option value="ENSINO MÉDIO" {% if session.get('segmento') == 'medio' %}selected{% endif %}>Ensino Médio (BNCC)</option>
+                                <option value="ENSINO FUNDAMENTAL" {% if session.get('segmento') == 'fundamental' %}selected{% endif %}>Ensino Fundamental (BNCC — Anual/Semestral/Mensal)</option>
+                                <option value="ENSINO MÉDIO" {% if session.get('segmento') == 'medio' %}selected{% endif %}>Ensino Médio (BNCC — Anual/Semestral/Mensal)</option>
+                                <option value="EDUCAÇÃO INFANTIL" {% if session.get('segmento') == 'infantil' %}selected{% endif %}>Educação Infantil (Anual/Semestral/Mensal)</option>
+                                <option value="PEI - PLANO EDUCACIONAL INDIVIDUALIZADO" {% if session.get('segmento') == 'pei' %}selected{% endif %}>PEI — Plano Educacional Individualizado (Semestral/Mensal)</option>
                                 <option value="HABILITAÇÃO TÉCNICA" {% if session.get('segmento') == 'tecnico' or not session.get('segmento') %}selected{% endif %}>Curso Técnico / Profissionalizante</option>
                                 <option value="QUALIFICAÇÃO PROFISSIONAL">Qualificação Profissional</option>
-                                <option value="EDUCAÇÃO INFANTIL" {% if session.get('segmento') == 'infantil' %}selected{% endif %}>Educação Infantil</option>
                                 <option value="ENSINO SUPERIOR" {% if session.get('segmento') == 'superior' %}selected{% endif %}>Ensino Superior / Graduação</option>
                             </select>
                             <div class="mt-2" id="dica_modelo">
@@ -76,6 +77,73 @@
                                     <i class="bi bi-mortarboard-fill me-1"></i> Modelo Padrão
                                 </span>
                                 <span class="text-muted small" id="label_modelo" style="font-size: 0.78rem;">Preenchimento inteligente com Taxonomia de Bloom</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloco Especial: PEI (Educação Especial Inclusiva) -->
+                    <div id="bloco_pei" class="p-4 mb-4 rounded-4 border border-danger-subtle bg-subtle-danger" style="display: none;">
+                        <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom border-danger-subtle">
+                            <span class="badge bg-danger rounded-pill px-2.5 py-1">PEI</span>
+                            <h5 class="fw-bold text-danger mb-0">
+                                <i class="bi bi-person-heart me-1"></i> Dados do Estudante &amp; Tecnologias Assistivas Globais
+                            </h5>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    Nome do Estudante <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="estudante_nome" id="estudante_nome" class="form-control form-control-lg bg-white"
+                                       placeholder="Ex: Lucas Henrique Silveira">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    Semestre de Referência do PEI <span class="text-danger">*</span>
+                                </label>
+                                <select name="semestre_pei" id="semestre_pei" class="form-select form-select-lg bg-white">
+                                    <option value="1" selected>1º Semestre (Fevereiro a Junho)</option>
+                                    <option value="2">2º Semestre (Agosto a Dezembro)</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">
+                                    Necessidades Educacionais Específicas / Diagnóstico <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" name="estudante_necessidades" id="estudante_necessidades" class="form-control bg-white"
+                                       placeholder="Ex: TEA (Nível 2 de Suporte), TDAH tipo combinado, Deficiência Intelectual leve...">
+                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('TEA (Transtorno do Espectro Autista)')">+ TEA</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('TDAH (Déficit de Atenção / Hiperatividade)')">+ TDAH</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('Deficiência Intelectual')">+ Deficiência Intelectual</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('Deficiência Auditiva / Surdez')">+ Auditiva / Surdez</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('Baixa Visão / Cegueira')">+ Visual</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="adicionarTagPei('Altas Habilidades / Superdotação')">+ Altas Habilidades</button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">
+                                    Tecnologias Assistivas &amp; Metodologias Inclusivas
+                                </label>
+                                <input type="text" name="recursos_tecnologicos_assistivos" id="recursos_tecnologicos_assistivos" class="form-control bg-white"
+                                       placeholder="Ex: DUA (Universal Design for Learning), CAA (ARASAAC), Apoios Visuais TEACCH, Text-to-Speech...">
+                                <span class="text-muted small">A IA aplicará automaticamente os padrões internacionais de DUA, CAA e TEACCH em todas as atividades geradas.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alerta de Fluxo em Cascata (Educação Básica) -->
+                    <div id="alerta_cascata_escolar" class="p-3 mb-4 rounded-3 border border-primary-subtle bg-subtle-primary" style="display: none;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-info-circle-fill fs-4 text-primary"></i>
+                            <div>
+                                <strong class="d-block text-primary">Fluxo Integrado em Cascata (Educação Básica):</strong>
+                                <span class="small text-muted">
+                                    1º Você gera o <strong>Planejamento Anual</strong> &bull;
+                                    2º Na tela seguinte, acesse a aba de <strong>Planejamento Semestral</strong> &bull;
+                                    3º Acesse a aba de <strong>Planejamento Mensal</strong> com todos os meses letivos &bull;
+                                    4º No mês desejado, gere os <strong>Planos de Aula</strong> aula a aula!
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -118,7 +186,7 @@
                         </div>
                     </div>
 
-                    <!-- Bloco 2: Modelo Educação Básica / Superior (Aulas por Bimestre e Duração) -->
+                    <!-- Bloco 2: Modelo Educação Básica / Superior (Aulas por Ano/Semestre e Duração) -->
                     <div id="bloco_cronograma_escolar" class="row g-3 mb-3" style="display: none;">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">
@@ -134,14 +202,14 @@
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold" id="label_aulas_periodo">
-                                Qtd. de Aulas no Bimestre <span class="text-danger">*</span>
+                                Qtd. de Aulas no Ano <span class="text-danger">*</span>
                             </label>
                             <div class="input-group input-group-lg">
                                 <input type="number" name="aulas_bimestre" id="aulas_bimestre" class="form-control"
-                                       placeholder="Ex: 40" min="1" value="40" oninput="atualizarResumoAulas()">
+                                       placeholder="Ex: 160" min="1" value="160" oninput="atualizarResumoAulas()">
                                 <span class="input-group-text bg-light text-muted">Aulas</span>
                             </div>
-                            <span class="text-muted small" id="dica_aulas_periodo">Total de aulas previstas no bimestre.</span>
+                            <span class="text-muted small" id="dica_aulas_periodo">Total de aulas previstas no ano letivo.</span>
                         </div>
 
                         <div class="col-md-4">
@@ -593,6 +661,16 @@ function atualizarBadgeModeloPadrao() {
     }
 }
 
+function adicionarTagPei(tag) {
+    const input = document.getElementById('estudante_necessidades');
+    if (!input) return;
+    if (input.value.trim().length === 0) {
+        input.value = tag;
+    } else if (!input.value.includes(tag)) {
+        input.value += ', ' + tag;
+    }
+}
+
 function atualizarTipoCurso() {
     const sel = document.getElementById('modalidade');
     const label = document.getElementById('label_modelo');
@@ -601,14 +679,24 @@ function atualizarTipoCurso() {
     const val = sel.value.toUpperCase();
 
     const ehTecnico = val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA') || val.includes('QUALIF') || val.includes('APERFEIÇ');
+    const ehPei = val.includes('PEI') || val.includes('INDIVIDUALIZADO');
+    const ehBasica = val.includes('FUNDAMENTAL') || val.includes('MÉDIO') || val.includes('MEDIO') || val.includes('INFANTIL');
     
     const blocoTecnico = document.getElementById('bloco_cronograma_tecnico');
     const blocoEscolar = document.getElementById('bloco_cronograma_escolar');
+    const blocoPei = document.getElementById('bloco_pei');
+    const alertaCascata = document.getElementById('alerta_cascata_escolar');
     const tipoCronograma = document.getElementById('tipo_cronograma');
     const inputCH = document.getElementById('carga_horaria');
     const inputHD = document.getElementById('horas_por_dia');
     const inputAulasBim = document.getElementById('aulas_bimestre');
     const inputAulasDia = document.getElementById('aulas_por_dia');
+    const inputNomeEstudante = document.getElementById('estudante_nome');
+
+    // Controle de exibição dos blocos PEI e Alerta de Cascata
+    if (blocoPei) blocoPei.style.display = ehPei ? 'block' : 'none';
+    if (alertaCascata) alertaCascata.style.display = (ehBasica && !ehPei) ? 'block' : 'none';
+    if (inputNomeEstudante) inputNomeEstudante.required = ehPei;
 
     if (ehTecnico) {
         if (blocoTecnico) blocoTecnico.style.display = 'flex';
@@ -645,33 +733,45 @@ function atualizarTipoCurso() {
         const labelAulasPeriodo = document.getElementById('label_aulas_periodo');
         const dicaAulasPeriodo = document.getElementById('dica_aulas_periodo');
 
-        if (ehSuperior) {
+        if (ehPei) {
+            if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Semestre <span class="text-danger">*</span>';
+            if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Previsão de atendimentos/aulas no semestre do PEI.';
+            if (inputAulasBim && (!inputAulasBim.value || inputAulasBim.value == '40')) {
+                inputAulasBim.value = '40';
+            }
+            if (badge) {
+                badge.className = 'badge bg-danger text-white me-1';
+                badge.innerHTML = '<i class="bi bi-heart-pulse-fill me-1"></i> PEI — Educação Inclusiva';
+            }
+            label.innerText = 'Plano Individualizado com DUA e Tecnologias Assistivas Mundiais';
+        } else if (ehSuperior) {
             if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Semestre <span class="text-danger">*</span>';
             if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Total de aulas previstas no semestre letivo.';
             if (inputAulasBim && (!inputAulasBim.value || inputAulasBim.value == '40')) {
                 inputAulasBim.value = '80';
                 inputAulasBim.placeholder = 'Ex: 80';
             }
-        } else {
-            if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Bimestre <span class="text-danger">*</span>';
-            if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Total de aulas previstas no bimestre.';
-            if (inputAulasBim && inputAulasBim.value == '80') {
-                inputAulasBim.value = '40';
-                inputAulasBim.placeholder = 'Ex: 40';
-            }
-        }
-
-        if (badge) {
-            badge.className = 'badge badge-subtle-primary me-1';
-            if (val.includes('FUNDAMENTAL') || val.includes('MÉDIO') || val.includes('MEDIO')) {
-                badge.innerHTML = '<i class="bi bi-journal-text me-1"></i> Modelo Educação Básica (BNCC)';
-                label.innerText = 'Planejamento estruturado por aulas e bimestres em Word (.docx)';
-            } else if (val.includes('INFANTIL')) {
-                badge.innerHTML = '<i class="bi bi-palette-fill me-1"></i> Modelo Educação Infantil';
-                label.innerText = 'Campos de experiências e objetivos de aprendizagem em Word (.docx)';
-            } else {
+            if (badge) {
+                badge.className = 'badge badge-subtle-primary me-1';
                 badge.innerHTML = '<i class="bi bi-building me-1"></i> Modelo Ensino Superior';
                 label.innerText = 'Ementário e cronograma de aulas semestrais em Word (.docx)';
+            }
+        } else {
+            if (labelAulasPeriodo) labelAulasPeriodo.innerHTML = 'Qtd. de Aulas no Ano <span class="text-danger">*</span>';
+            if (dicaAulasPeriodo) dicaAulasPeriodo.innerText = 'Total de aulas previstas no ano letivo (Educação Básica).';
+            if (inputAulasBim && (inputAulasBim.value == '40' || inputAulasBim.value == '80')) {
+                inputAulasBim.value = '160';
+                inputAulasBim.placeholder = 'Ex: 160';
+            }
+            if (badge) {
+                badge.className = 'badge badge-subtle-primary me-1';
+                if (val.includes('INFANTIL')) {
+                    badge.innerHTML = '<i class="bi bi-palette-fill me-1"></i> Educação Infantil (Cascata)';
+                    label.innerText = 'Planejamento Anual, Semestral, Mensal e Planos de Aula';
+                } else {
+                    badge.innerHTML = '<i class="bi bi-journal-text me-1"></i> Educação Básica BNCC (Cascata)';
+                    label.innerText = 'Planejamento Anual -> Semestral -> Mensal -> Planos de Aula';
+                }
             }
         }
     }
@@ -1014,12 +1114,12 @@ function atualizarResumoAulas() {
             const totalHorasEst = Math.round((aulasBim * duracao) / 60);
             const selModalidade = document.getElementById('modalidade');
             const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
-            const periodoNome = ehSuperior ? 'no semestre' : 'no bimestre';
+            const periodoNome = ehSuperior ? 'no semestre' : 'no ano';
             detalhesCalculo = `<strong>${total} encontros</strong> calculados (${aulasBim} aulas ${periodoNome} ÷ ${aulasDia} aula(s)/dia, com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h.`;
         } else {
             const selModalidade = document.getElementById('modalidade');
             const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
-            const periodoNome = ehSuperior ? 'no Semestre' : 'no Bimestre';
+            const periodoNome = ehSuperior ? 'no Semestre' : 'no Ano';
             resumo.innerText = `Informe a Quantidade de Aulas ${periodoNome} e as Aulas por Dia para calcular o cronograma.`;
             return;
         }

@@ -70,7 +70,15 @@
                                 <div class="text-dark">{{ p[1] }}</div>
                                 <div class="small mt-1">
                                     {% if p|length > 14 and p[14] %}
-                                        {% if 'TÉCNIC' in p[14]|upper or 'TECNIC' in p[14]|upper or 'HABILITA' in p[14]|upper %}
+                                        {% if 'PEI' in p[14]|upper or 'INDIVIDUALIZADO' in p[14]|upper %}
+                                            <span class="badge bg-danger text-white me-1">
+                                                <i class="bi bi-heart-pulse-fill me-1"></i> PEI Inclusivo
+                                            </span>
+                                        {% elif 'FUNDAMENTAL' in p[14]|upper or 'MÉDIO' in p[14]|upper or 'MEDIO' in p[14]|upper or 'INFANTIL' in p[14]|upper %}
+                                            <span class="badge bg-primary text-white me-1">
+                                                <i class="bi bi-diagram-3-fill me-1"></i> Cascata Escolar
+                                            </span>
+                                        {% elif 'TÉCNIC' in p[14]|upper or 'TECNIC' in p[14]|upper or 'HABILITA' in p[14]|upper %}
                                             <span class="badge badge-subtle-primary me-1">
                                                 <i class="bi bi-mortarboard-fill me-1"></i> Técnico
                                             </span>
@@ -121,7 +129,13 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex align-items-center justify-content-center gap-1">
-                                    {% if p|length > 15 and p[15] and p[15] > 0 and p[13] %}
+                                    {% set eh_cascata_ou_pei = p|length > 14 and p[14] and ('FUNDAMENTAL' in p[14]|upper or 'MÉDIO' in p[14]|upper or 'MEDIO' in p[14]|upper or 'INFANTIL' in p[14]|upper or 'PEI' in p[14]|upper or 'INDIVIDUALIZADO' in p[14]|upper) %}
+                                    {% if eh_cascata_ou_pei %}
+                                        <a href="/planejamento/{{ p[0] }}" class="btn {{ 'btn-danger' if ('PEI' in (p[14] or '')|upper) else 'btn-primary' }} btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Abrir Planejamento em Abas (Anual, Semestral, Mensal e Planos de Aula)">
+                                            <i class="bi {{ 'bi-person-heart' if ('PEI' in (p[14] or '')|upper) else 'bi-diagram-3-fill' }}"></i>
+                                            <span>{{ 'Abrir PEI' if ('PEI' in (p[14] or '')|upper) else 'Abrir (Abas)' }}</span>
+                                        </a>
+                                    {% elif p|length > 15 and p[15] and p[15] > 0 and p[13] %}
                                         <a href="/curso/{{ p[13] }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Abrir os {{ p[15] }} planos de aula já estruturados para este planejamento">
                                             <i class="bi bi-journal-check text-primary"></i>
                                             <span>Ver Planos</span>
@@ -133,11 +147,13 @@
                                             <span>Gerar Planos</span>
                                         </a>
                                     {% endif %}
-                                    {% set eh_word = p[10] and (p[10].lower().endswith('.docx') or p[10].lower().endswith('.doc')) %}
-                                    <a href="/baixar_planejamento/{{ p[0] }}" class="btn {{ 'btn-primary' if eh_word else 'btn-success' }} btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Baixar arquivo {{ 'Word (.docx)' if eh_word else 'Excel (.xlsx)' }} preenchido">
-                                        <i class="bi {{ 'bi-file-earmark-word' if eh_word else 'bi-file-earmark-excel' }}"></i>
-                                        <span>{{ 'Word' if eh_word else 'Excel' }}</span>
-                                    </a>
+                                    {% if p[10] %}
+                                        {% set eh_word = p[10].lower().endswith('.docx') or p[10].lower().endswith('.doc') %}
+                                        <a href="/baixar_planejamento/{{ p[0] }}" class="btn {{ 'btn-primary' if eh_word else 'btn-success' }} btn-sm d-inline-flex align-items-center gap-1 shadow-sm" title="Baixar arquivo {{ 'Word (.docx)' if eh_word else 'Excel (.xlsx)' }} preenchido">
+                                            <i class="bi {{ 'bi-file-earmark-word' if eh_word else 'bi-file-earmark-excel' }}"></i>
+                                            <span>{{ 'Word' if eh_word else 'Excel' }}</span>
+                                        </a>
+                                    {% endif %}
                                     <a href="/deletar_planejamento/{{ p[0] }}" class="btn btn-outline-danger btn-sm shadow-sm"
                                        onclick="return confirm('Deseja realmente excluir este planejamento docente e arquivos associados?')" title="Excluir planejamento">
                                         <i class="bi bi-trash3"></i>

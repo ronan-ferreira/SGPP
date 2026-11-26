@@ -1393,7 +1393,7 @@ h1, h2, h3, h4, h5, h6 {
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(14px);
     border-bottom: 1px solid #e2e8f0;
-    padding: 12px 0;
+    padding: 8px 0;
     transition: box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
@@ -1442,7 +1442,9 @@ h1, h2, h3, h4, h5, h6 {
 .landing-nav-link {
     color: #475569 !important;
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
+    padding: 6px 12px !important;
+    white-space: nowrap;
     position: relative;
     transition: color 0.2s ease;
 }
@@ -1457,10 +1459,11 @@ h1, h2, h3, h4, h5, h6 {
     background: var(--grad-orange);
     color: #ffffff;
     font-weight: 700;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     border: 1px solid var(--brand-orange-600);
     border-radius: 9px;
     box-shadow: var(--shadow-orange);
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 
@@ -1476,9 +1479,10 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #ffffff;
     color: var(--brand-navy-950);
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     border: 1px solid #cbd5e1;
     border-radius: 9px;
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 

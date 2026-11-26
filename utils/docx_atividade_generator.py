@@ -6,6 +6,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from utils.imagem_utils import obter_dimensoes_proporcionais
 
 
 def _set_cell_bg(cell, hex_color):
@@ -82,7 +83,8 @@ def gerar_docx_atividade(
         p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_logo.paragraph_format.space_after = Pt(2)
         try:
-            p_logo.add_run().add_picture(logo_path, width=Cm(3.8))
+            w_cm, h_cm = obter_dimensoes_proporcionais(logo_path, max_w=4.2, max_h=1.6)
+            p_logo.add_run().add_picture(logo_path, width=Cm(w_cm), height=Cm(h_cm))
         except Exception:
             pass
 

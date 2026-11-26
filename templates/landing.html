@@ -71,23 +71,23 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <!-- CSS Customizado -->
-    <link href="{{ url_for('static', filename='css/style.css') }}?v=10" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=11" rel="stylesheet">
 </head>
 
 <body class="landing-body">
 
     <!-- Barra de Navegação Executiva -->
-    <nav class="navbar navbar-expand-lg landing-navbar sticky-top" id="mainLandingNav">
-        <div class="container py-1">
-            <a class="navbar-brand d-flex align-items-center gap-3 text-decoration-none" href="/">
-                <img src="{{ url_for('static', filename='img/logo_icone_oficial.png') }}?v=1" alt="Logo SGPP" width="42" height="42" class="landing-logo-img object-fit-contain">
+    <nav class="navbar navbar-expand-xl landing-navbar sticky-top" id="mainLandingNav">
+        <div class="container-fluid px-3 px-lg-4 px-xl-5 py-0" style="max-width: 1440px;">
+            <a class="navbar-brand d-flex align-items-center gap-2 gap-xl-3 text-decoration-none me-2 me-xl-4" href="/">
+                <img src="{{ url_for('static', filename='img/logo_icone_oficial.png') }}?v=1" alt="Logo SGPP" width="38" height="38" class="landing-logo-img object-fit-contain">
                 <div class="lh-sm">
                     <div class="d-flex align-items-center gap-2">
                         <span class="fw-extrabold fs-4 landing-brand-title">SGPP</span>
                         <span class="landing-brand-divider">|</span>
-                        <span class="landing-brand-tag d-none d-md-inline">Gestão Pedagógica</span>
+                        <span class="landing-brand-tag">Gestão Pedagógica</span>
                     </div>
-                    <span class="d-none d-sm-block landing-brand-subtitle">
+                    <span class="d-none d-xxl-block landing-brand-subtitle">
                         Sistema de Gestão e Planejamento Pedagógico
                     </span>
                 </div>
@@ -98,7 +98,7 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarLanding">
-                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-4">
+                <ul class="navbar-nav mx-auto mb-2 mb-xl-0 gap-1 gap-xl-2 gap-xxl-3">
                     <li class="nav-item">
                         <a class="nav-link landing-nav-link" href="#modulos">Módulos</a>
                     </li>
@@ -116,22 +116,23 @@
                     </li>
                 </ul>
 
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-lg-0">
+                <div class="d-flex flex-wrap flex-xl-nowrap align-items-center gap-2 mt-3 mt-xl-0 flex-shrink-0">
                     {% if session.get('usuario_id') %}
-                        <span class="text-muted small me-2 d-none d-xl-inline">
+                        <span class="text-muted small me-1 d-none d-xxl-inline text-truncate" style="max-width: 150px;" title="{{ session.get('nome', 'Docente') }}">
                             Docente: <strong class="text-dark">{{ session.get('nome', 'Docente') }}</strong>
                         </span>
-                        <a href="/dashboard" class="btn btn-landing-primary px-4 py-2">
-                            <i class="bi bi-grid-1x2 me-1"></i> Ir para o Painel
+                        <a href="/dashboard" class="btn btn-landing-primary px-3 px-xl-4 py-2 text-nowrap d-flex align-items-center gap-1">
+                            <i class="bi bi-grid-1x2"></i> <span>Ir para o Painel</span>
                         </a>
-                        <a href="/logout" class="btn btn-landing-outline px-3 py-2" title="Encerrar sessão">
-                            Sair
+                        <a href="/logout" class="btn btn-landing-outline px-3 py-2 text-nowrap d-flex align-items-center gap-1" title="Encerrar sessão com segurança">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Sair</span>
                         </a>
                     {% else %}
-                        <a href="/login" class="btn btn-landing-outline px-3 py-2">
+                        <a href="/login" class="btn btn-landing-outline px-3 py-2 text-nowrap">
                             Entrar
                         </a>
-                        <a href="/cadastro" class="btn btn-landing-primary px-4 py-2">
+                        <a href="/cadastro" class="btn btn-landing-primary px-3 px-xl-4 py-2 text-nowrap">
                             Criar Conta Docente
                         </a>
                     {% endif %}
@@ -408,9 +409,9 @@
                             <span class="landing-step-badge">Etapa 1</span>
                             <span class="landing-step-line"></span>
                         </div>
-                        <h6 class="fw-bold text-dark mt-3 mb-2">Leitura da Matriz</h6>
+                        <h6 class="fw-bold text-dark mt-3 mb-2">Conteúdos e Conhecimentos</h6>
                         <p class="text-muted small mb-0">
-                            Importe a matriz curricular (PDF/Excel) ou cadastre a unidade curricular com suas capacidades técnicas e socioemocionais.
+                            Insira ou cole os tópicos da ementa, objetos de conhecimento e habilidades da disciplina — com liberdade para digitar diretamente ou, opcionalmente, importar uma matriz curricular.
                         </p>
                     </div>
                 </div>

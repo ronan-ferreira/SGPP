@@ -112,6 +112,31 @@
                         </div>
                     </div>
 
+                    <!-- Seleção do Segmento de Ensino / PEI -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-mortarboard-fill text-primary"></i> Segmento / Modalidade Educacional <span class="text-danger">*</span>
+                        </label>
+                        {% set seg_req = request.args.get('segmento', session.get('segmento', 'fundamental')) %}
+                        <select name="segmento" id="selectSegmento" class="form-select form-select-lg" onchange="verificarSegmentoPei(this.value)">
+                            <option value="fundamental" {% if seg_req == 'fundamental' or 'fundamental' in seg_req|lower %}selected{% endif %}>Ensino Fundamental (BNCC)</option>
+                            <option value="medio" {% if seg_req == 'medio' or 'médio' in seg_req|lower or 'medio' in seg_req|lower %}selected{% endif %}>Ensino Médio (BNCC)</option>
+                            <option value="infantil" {% if seg_req == 'infantil' or 'infantil' in seg_req|lower %}selected{% endif %}>Educação Infantil</option>
+                            <option value="pei" {% if seg_req == 'pei' or 'individualizado' in seg_req|lower or 'especial' in seg_req|lower %}selected{% endif %}>PEI — Plano Educacional Individualizado (Educação Especial Inclusiva)</option>
+                            <option value="tecnico" {% if seg_req == 'tecnico' or 'técnico' in seg_req|lower or 'tecnico' in seg_req|lower %}selected{% endif %}>Curso Técnico / Profissionalizante</option>
+                            <option value="superior" {% if seg_req == 'superior' or 'superior' in seg_req|lower %}selected{% endif %}>Ensino Superior / Graduação</option>
+                        </select>
+
+                        <!-- Alerta Contextual de IA para PEI -->
+                        <div id="alertaPeiAtividades" class="p-3 mt-3 rounded-3 border border-danger-subtle bg-subtle-danger" style="display: {{ 'flex' if (seg_req == 'pei' or 'individualizado' in seg_req|lower) else 'none' }}; align-items: center; gap: 10px;">
+                            <i class="bi bi-heart-pulse-fill fs-3 text-danger flex-shrink-0"></i>
+                            <div>
+                                <strong class="d-block text-danger">Modo PEI Ativo (Educação Inclusiva):</strong>
+                                <span class="small text-muted">A IA já reconhece que o estudante é da Educação Especial. As questões serão geradas com linguagem simples (Plain Language), máximo de 3 alternativas, indicação de apoio visual/pictogramas, princípios de DUA e sem pegadinhas.</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">
@@ -333,6 +358,16 @@ form.addEventListener('submit', async function(e) {
         form.submit();
     }
 });
+
+function verificarSegmentoPei(val) {
+    const alerta = document.getElementById('alertaPeiAtividades');
+    if (!alerta) return;
+    if (val === 'pei' || (val && val.toLowerCase().includes('individualizado'))) {
+        alerta.style.display = 'flex';
+    } else {
+        alerta.style.display = 'none';
+    }
+}
 
 // Ação de confirmar "Sim, completar com banco externo"
 document.getElementById('btnModalSimCompletar').addEventListener('click', function() {

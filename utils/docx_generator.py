@@ -5,6 +5,7 @@ from docx.shared import Inches, Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
+from utils.imagem_utils import obter_dimensoes_proporcionais
 
 
 def extrair_campo_avancado(texto, campo):
@@ -48,7 +49,8 @@ def adicionar_cabecalho(doc, logo_path=None):
             paragrafo_logo = cabecalho.paragraphs[0] if cabecalho.paragraphs else cabecalho.add_paragraph()
             paragrafo_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = paragrafo_logo.add_run()
-            run.add_picture(logo_path, width=Inches(1.5))
+            w_in, h_in = obter_dimensoes_proporcionais(logo_path, max_w=1.6, max_h=0.7)
+            run.add_picture(logo_path, width=Inches(w_in), height=Inches(h_in))
             paragrafo_logo.space_after = Pt(2)
         except Exception as e:
             print(f"Erro ao adicionar logo: {e}")
@@ -90,7 +92,8 @@ def gerar_docx_plano(
             paragrafo_logo = cabecalho.paragraphs[0] if cabecalho.paragraphs else cabecalho.add_paragraph()
             paragrafo_logo.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run_logo = paragrafo_logo.add_run()
-            run_logo.add_picture(logo_path, width=Inches(1.2))
+            w_in, h_in = obter_dimensoes_proporcionais(logo_path, max_w=1.6, max_h=0.7)
+            run_logo.add_picture(logo_path, width=Inches(w_in), height=Inches(h_in))
             paragrafo_logo.space_after = Pt(2)
         except Exception as e:
             print(f"Erro ao adicionar logo no cabeçalho: {e}")

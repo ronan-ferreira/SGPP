@@ -17,6 +17,8 @@ MODELO_TECNICO      = os.path.join(PASTA_TEMPLATES, "modelo_tecnico.xlsx")
 MODELO_QUALIFICACAO = os.path.join(PASTA_TEMPLATES, "modelo_qualificacao.xlsx")
 MODELO_LEGADO       = os.path.join(PASTA_TEMPLATES, "modelo_planejamento_docente.xlsx")
 
+from utils.imagem_utils import processar_logo_canvas_excel
+
 # PNG 1x1 transparente usado para limpar a logo fixa do modelo quando o professor não enviou logo própria
 _PNG_TRANSPARENTE_1X1 = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
@@ -30,17 +32,20 @@ LOGO_PROJETO = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
 
 def obter_bytes_logo_oficial(logo_custom_path=None, unidade_escolar=""):
     """
-    Retorna os bytes da logo institucional do professor.
+    Retorna os bytes da logo institucional do professor ajustada proporcionalmente no canvas.
     Se o professor não enviou logo própria, retorna um PNG transparente 1x1
     (evitando exibir logo do SENAI para professores de outras instituições),
     exceto se a instituição informada contiver explicitamente 'SENAI'.
     """
     if logo_custom_path and os.path.exists(logo_custom_path):
         try:
+            bytes_proc = processar_logo_canvas_excel(logo_custom_path, largura_canvas=400, altura_canvas=120)
+            if bytes_proc:
+                return bytes_proc
             with open(logo_custom_path, "rb") as f:
                 return f.read()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[AVISO] Falha ao processar canvas da logo customizada: {e}")
 
     if "SENAI" in str(unidade_escolar or "").upper() and os.path.exists(LOGO_PROJETO):
         try:

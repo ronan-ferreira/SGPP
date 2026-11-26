@@ -249,6 +249,19 @@ def _executar_migracoes_iniciais():
 
             ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS modalidade VARCHAR(100);
             ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS curso_id INTEGER REFERENCES cursos_plano(id) ON DELETE SET NULL;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS tipo_planejamento VARCHAR(50) DEFAULT 'anual';
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS planejamento_pai_id INTEGER REFERENCES planejamentos_docente(id) ON DELETE CASCADE;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS semestre INTEGER;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS mes INTEGER;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS dados_json TEXT;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS estudante_nome VARCHAR(150);
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS estudante_necessidades TEXT;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS recursos_tecnologicos_assistivos TEXT;
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS dias_semana VARCHAR(100);
+            ALTER TABLE planejamentos_docente ADD COLUMN IF NOT EXISTS aulas_semana INTEGER;
+
+            CREATE INDEX IF NOT EXISTS idx_planejamentos_pai ON planejamentos_docente(planejamento_pai_id);
+            CREATE INDEX IF NOT EXISTS idx_planejamentos_tipo ON planejamentos_docente(tipo_planejamento);
 
             CREATE INDEX IF NOT EXISTS idx_planejamentos_usuario ON planejamentos_docente(usuario_id);
             CREATE INDEX IF NOT EXISTS idx_planejamentos_data ON planejamentos_docente(data_criacao DESC);
@@ -265,6 +278,11 @@ def _executar_migracoes_iniciais():
             );
 
             ALTER TABLE planos_aula ADD COLUMN IF NOT EXISTS planejamento_id INTEGER REFERENCES planejamentos_docente(id) ON DELETE SET NULL;
+            ALTER TABLE planos_aula ADD COLUMN IF NOT EXISTS mes INTEGER;
+            ALTER TABLE planos_aula ADD COLUMN IF NOT EXISTS semana INTEGER;
+            ALTER TABLE planos_aula ADD COLUMN IF NOT EXISTS metodologia_inclusiva TEXT;
+
+            CREATE INDEX IF NOT EXISTS idx_planos_aula_mes ON planos_aula(planejamento_id, mes);
 
             CREATE INDEX IF NOT EXISTS idx_planos_aula_curso ON planos_aula(curso_id);
             CREATE INDEX IF NOT EXISTS idx_planos_aula_usuario ON planos_aula(usuario_id);
