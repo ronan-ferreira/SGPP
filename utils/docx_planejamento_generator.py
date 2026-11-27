@@ -8,6 +8,7 @@ Capaz de ler qualquer modelo personalizado em Word (.docx) enviado por professor
 Garante que nenhuma linha seja duplicada e preenche rigorosamente todos os campos pedagógicos.
 """
 
+import copy
 import os
 import re
 import unicodedata
@@ -28,6 +29,21 @@ def normalizar_texto_chave(txt):
         return ""
     s = unicodedata.normalize("NFKD", str(txt)).encode("ASCII", "ignore").decode("utf-8")
     return re.sub(r"[^a-zA-Z0-9\s]", " ", s).strip().lower()
+
+
+def _sanitizar_nome_arquivo(texto, padrao="Planejamento", max_len=60):
+    """Converte um texto para nome de arquivo ASCII seguro."""
+    base = unicodedata.normalize("NFKD", str(texto or "")).encode("ASCII", "ignore").decode("ASCII")
+    limpo = re.sub(r"[^A-Za-z0-9_-]+", "_", base).strip("_-")
+    return (limpo or padrao)[:max_len]
+
+
+def _definir_celula_segura_row(row, col_idx, texto, bold=False, alinhamento=WD_ALIGN_PARAGRAPH.LEFT, tamanho_pt=9.5, cor_rgb=None):
+    """Escreve em row.cells[col_idx] verificando limites (evita IndexError em tabelas com merges irregulares)."""
+    cells = row.cells
+    if col_idx is None or col_idx < 0 or col_idx >= len(cells):
+        return
+    _definir_texto_celula(cells[col_idx], texto, bold=bold, alinhamento=alinhamento, tamanho_pt=tamanho_pt, cor_rgb=cor_rgb)
 
 
 def _set_cell_bg(cell, hex_color):
@@ -125,13 +141,27 @@ def _preencher_tabela_cabecalho_grade(tabela, dados_cabecalho):
     periodo = f"{d_ini} à {d_fim}" if (d_ini and d_fim) else (d_ini or d_fim or "")
 
     for row in tabela.rows:
-        num_cells = len(row.cells)
+        cells = row.cells
+        num_cells = len(cells)
+        visto_tcs = set()
         for c_idx in range(num_cells):
-            cell_txt = normalizar_texto_chave(row.cells[c_idx].text)
-            if not cell_txt or c_idx + 1 >= num_cells:
+            tc_atual = cells[c_idx]._tc
+            if tc_atual in visto_tcs:
+                continue
+            visto_tcs.add(tc_atual)
+
+            cell_txt = normalizar_texto_chave(cells[c_idx].text)
+            if not cell_txt:
                 continue
 
-            alvo_cell = row.cells[c_idx + 1]
+            # Encontra a próxima célula distinta (pula células que pertencem ao mesmo merge horizontal do rótulo)
+            next_idx = c_idx + 1
+            while next_idx < num_cells and cells[next_idx]._tc is tc_atual:
+                next_idx += 1
+            if next_idx >= num_cells:
+                continue
+
+            alvo_cell = cells[next_idx]
 
             if any(k in cell_txt for k in ["curso", "nome do curso"]):
                 _definir_texto_celula(alvo_cell, nome_curso, bold=True)
@@ -140,7 +170,7 @@ def _preencher_tabela_cabecalho_grade(tabela, dados_cabecalho):
             elif any(k in cell_txt for k in ["codigo da turma", "turma"]):
                 _definir_texto_celula(alvo_cell, turma, bold=False)
             elif any(k in cell_txt for k in ["carga horaria da u c", "carga horaria"]):
-                ch_txt = f"{ch} horas" if ch and not ch.endswith("h") and not "hora" in ch.lower() else ch
+                ch_txt = f"{ch} horas" if ch and not ch.endswith("h") and "hora" not in ch.lower() else ch
                 _definir_texto_celula(alvo_cell, ch_txt, bold=False)
             elif any(k in cell_txt for k in ["instrutor", "docente", "professor"]):
                 _definir_texto_celula(alvo_cell, instrutor, bold=True)
@@ -167,11 +197,14 @@ def _detectar_tipo_modelo_docx(doc):
     ]
 
     for i, t in enumerate(doc.tables):
-        if len(t.columns) == 2 and len(t.rows) >= 5:
-            rotulos = [normalizar_texto_chave(r.cells[0].text) for r in t.rows]
-            matches = sum(1 for rot in rotulos if any(k in rot for k in palavras_chave_rotulo))
-            if matches >= 3:
-                tabelas_verticais.append((i, t))
+        try:
+            if len(t.columns) == 2 and len(t.rows) >= 5:
+                rotulos = [normalizar_texto_chave(r.cells[0].text) for r in t.rows if r.cells]
+                matches = sum(1 for rot in rotulos if any(k in rot for k in palavras_chave_rotulo))
+                if matches >= 3:
+                    tabelas_verticais.append((i, t))
+        except Exception:
+            continue
 
     if len(tabelas_verticais) >= 1:
         return ("cartoes_verticais", [t for _, t in tabelas_verticais], None, None)
@@ -271,35 +304,42 @@ def _preencher_cartoes_verticais_docx(doc, tabelas_aulas, dados_cabecalho, aulas
             p_aula = paragrafos_aula[idx]
             p_aula.text = f"AULA — {dt_ini_str}" if dt_ini_str else f"AULA {idx+1}"
 
-        # Se já existe a tabela correspondente no modelo, preenche suas células na coluna 1
-        if idx < num_tabelas_modelo:
+        # Se já existe a tabela correspondente no modelo, usa; senão clona o último cartão do modelo
+        if idx < len(tabelas_aulas):
             tabela = tabelas_aulas[idx]
-            for row in tabela.rows:
-                if len(row.cells) < 2:
-                    continue
-                rotulo = normalizar_texto_chave(row.cells[0].text)
-                cell_valor = row.cells[1]
+        else:
+            ultima_tbl_elem = tabelas_aulas[-1]._tbl
+            novo_tbl_elem = copy.deepcopy(ultima_tbl_elem)
+            ultima_tbl_elem.addnext(novo_tbl_elem)
+            tabela = docx.table.Table(novo_tbl_elem, doc)
+            tabelas_aulas.append(tabela)
 
-                if any(k in rotulo for k in ["capacidade e conhecimento", "capacidade", "conhecimento"]):
-                    _definir_texto_celula(cell_valor, texto_conteudo)
-                elif any(k in rotulo for k in ["matriz de referencia", "saep"]):
-                    _definir_texto_celula(cell_valor, saep_txt)
-                elif any(k in rotulo for k in ["estrategia de ensino", "estrategia", "metodologia"]):
-                    _definir_texto_celula(cell_valor, estrategia_txt)
-                elif any(k in rotulo for k in ["ambiente pedagogico", "ambiente", "local"]):
-                    _definir_texto_celula(cell_valor, ambiente_txt)
-                elif any(k in rotulo for k in ["recursos didaticos", "recursos", "material"]):
-                    _definir_texto_celula(cell_valor, recursos_txt)
-                elif any(k in rotulo for k in ["carga horaria", "ch"]):
-                    _definir_texto_celula(cell_valor, ch_txt)
-                elif any(k in rotulo for k in ["criterios de avaliacao", "criterios"]):
-                    _definir_texto_celula(cell_valor, criterios_txt)
-                elif any(k in rotulo for k in ["instrumento de avaliacao", "instrumento"]):
-                    _definir_texto_celula(cell_valor, instrumentos_txt)
-                elif any(k in rotulo for k in ["situacao de aprendizagem", "situacao"]):
-                    _definir_texto_celula(cell_valor, sa_txt)
-                elif any(k in rotulo for k in ["periodo", "data"]):
-                    _definir_texto_celula(cell_valor, periodo_aula_txt)
+        for row in tabela.rows:
+            if len(row.cells) < 2 or row.cells[1]._tc is row.cells[0]._tc:
+                continue
+            rotulo = normalizar_texto_chave(row.cells[0].text)
+            cell_valor = row.cells[1]
+
+            if any(k in rotulo for k in ["capacidade e conhecimento", "capacidade", "conhecimento"]):
+                _definir_texto_celula(cell_valor, texto_conteudo)
+            elif any(k in rotulo for k in ["matriz de referencia", "saep"]):
+                _definir_texto_celula(cell_valor, saep_txt)
+            elif any(k in rotulo for k in ["estrategia de ensino", "estrategia", "metodologia"]):
+                _definir_texto_celula(cell_valor, estrategia_txt)
+            elif any(k in rotulo for k in ["ambiente pedagogico", "ambiente", "local"]):
+                _definir_texto_celula(cell_valor, ambiente_txt)
+            elif any(k in rotulo for k in ["recursos didaticos", "recursos", "material"]):
+                _definir_texto_celula(cell_valor, recursos_txt)
+            elif any(k in rotulo for k in ["carga horaria", "ch"]):
+                _definir_texto_celula(cell_valor, ch_txt)
+            elif any(k in rotulo for k in ["criterios de avaliacao", "criterios"]):
+                _definir_texto_celula(cell_valor, criterios_txt)
+            elif any(k in rotulo for k in ["instrumento de avaliacao", "instrumento"]):
+                _definir_texto_celula(cell_valor, instrumentos_txt)
+            elif any(k in rotulo for k in ["situacao de aprendizagem", "situacao"]):
+                _definir_texto_celula(cell_valor, sa_txt)
+            elif any(k in rotulo for k in ["periodo", "data"]):
+                _definir_texto_celula(cell_valor, periodo_aula_txt)
 
     # Se o modelo tinha MAIS tabelas de aula do que o necessário, remove as tabelas e títulos excedentes
     if num_tabelas_modelo > total_aulas:
@@ -347,33 +387,33 @@ def _preencher_tabela_horizontal_docx(tabela, linha_cabecalho_idx, mapeamento, d
             texto_conteudo = cap or con or "Desenvolvimento de competências técnicas"
 
         if "dia" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["dia"]], f"Aula {idx+1}", bold=True, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
+            _definir_celula_segura_row(row, mapeamento["dia"], f"Aula {idx+1}", bold=True, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
 
         if "conteudo" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["conteudo"]], texto_conteudo)
+            _definir_celula_segura_row(row, mapeamento["conteudo"], texto_conteudo)
 
         if "estrategia" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["estrategia"]], str(aula.get("estrategia", "")).strip())
+            _definir_celula_segura_row(row, mapeamento["estrategia"], str(aula.get("estrategia", "")).strip())
 
         if "ambiente" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["ambiente"]], str(aula.get("ambiente", "Sala / Laboratório")).strip())
+            _definir_celula_segura_row(row, mapeamento["ambiente"], str(aula.get("ambiente", "Sala / Laboratório")).strip())
 
         if "recursos" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["recursos"]], str(aula.get("recursos", "Recursos Didáticos")).strip())
+            _definir_celula_segura_row(row, mapeamento["recursos"], str(aula.get("recursos", "Recursos Didáticos")).strip())
 
         if "carga_horaria" in mapeamento:
             ch_txt = str(aula.get("carga_horaria_str") or f"{aula.get('horas_aula', 4)}h")
-            _definir_texto_celula(row.cells[mapeamento["carga_horaria"]], ch_txt, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
+            _definir_celula_segura_row(row, mapeamento["carga_horaria"], ch_txt, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
 
         if "criterios" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["criterios"]], str(aula.get("criterios", "")).strip())
+            _definir_celula_segura_row(row, mapeamento["criterios"], str(aula.get("criterios", "")).strip())
 
         if "instrumentos" in mapeamento:
-            _definir_texto_celula(row.cells[mapeamento["instrumentos"]], str(aula.get("instrumentos", "")).strip())
+            _definir_celula_segura_row(row, mapeamento["instrumentos"], str(aula.get("instrumentos", "")).strip())
 
         if "situacao" in mapeamento:
             sa = aula.get("situacao_aprendizagem") or "Situação de aprendizagem contextualizada com prática profissional"
-            _definir_texto_celula(row.cells[mapeamento["situacao"]], str(sa).strip())
+            _definir_celula_segura_row(row, mapeamento["situacao"], str(sa).strip())
 
         # Datas
         dt_ini = aula.get("data_inicio")
@@ -386,10 +426,10 @@ def _preencher_tabela_horizontal_docx(tabela, linha_cabecalho_idx, mapeamento, d
             if "data_fim" not in mapeamento or mapeamento["data_fim"] == mapeamento["data_inicio"]:
                 if dt_fim_str and dt_fim_str != dt_ini_str:
                     data_texto = f"{dt_ini_str} a {dt_fim_str}"
-            _definir_texto_celula(row.cells[mapeamento["data_inicio"]], data_texto, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
+            _definir_celula_segura_row(row, mapeamento["data_inicio"], data_texto, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
 
         if "data_fim" in mapeamento and mapeamento["data_fim"] != mapeamento.get("data_inicio"):
-            _definir_texto_celula(row.cells[mapeamento["data_fim"]], dt_fim_str, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
+            _definir_celula_segura_row(row, mapeamento["data_fim"], dt_fim_str, alinhamento=WD_ALIGN_PARAGRAPH.CENTER)
 
         for cell in row.cells:
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -460,13 +500,22 @@ def gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=None, caminho
     Se caminho_modelo for fornecido, preenche o modelo personalizado.
     Caso contrário, gera a partir do modelo base em templates/ ou cria novo documento estruturado.
     """
+    doc = None
     if caminho_modelo and os.path.exists(caminho_modelo):
-        doc = Document(caminho_modelo)
-    else:
+        try:
+            doc = Document(caminho_modelo)
+        except Exception as e:
+            print(f"[AVISO] Não foi possível abrir o modelo Word '{caminho_modelo}' diretamente ({e}). Usando documento estruturado padrão.")
+            doc = None
+
+    if doc is None:
         # Fallback para modelo padrão do sistema
         modelo_padrao = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "modelo.docx")
         if os.path.exists(modelo_padrao):
-            doc = Document(modelo_padrao)
+            try:
+                doc = Document(modelo_padrao)
+            except Exception:
+                doc = Document()
         else:
             doc = Document()
 
@@ -553,7 +602,7 @@ def gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=None, caminho
     if not caminho_saida:
         os.makedirs("outputs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_uc_safe = "".join(c for c in uc if c.isalnum() or c in (" ", "_", "-")).strip() or "Planejamento"
+        nome_uc_safe = _sanitizar_nome_arquivo(uc, padrao="Planejamento")
         caminho_saida = f"outputs/Planejamento_Docente_{nome_uc_safe}_{timestamp}.docx"
 
     pasta = os.path.dirname(caminho_saida)

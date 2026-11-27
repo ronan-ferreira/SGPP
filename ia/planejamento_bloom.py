@@ -67,11 +67,14 @@ def calcular_datas_aulas(data_inicio_str, total_aulas, dias_semana=None, feriado
         hoje = datetime.now()
         data_inicio = hoje + timedelta(days=1)
     else:
-        if "/" in str(data_inicio_str):
-            partes = str(data_inicio_str).strip().split("/")
-            data_inicio = datetime(int(partes[2]), int(partes[1]), int(partes[0]))
-        else:
-            data_inicio = datetime.strptime(str(data_inicio_str).strip()[:10], "%Y-%m-%d")
+        try:
+            if "/" in str(data_inicio_str):
+                partes = str(data_inicio_str).strip().split("/")
+                data_inicio = datetime(int(partes[2]), int(partes[1]), int(partes[0]))
+            else:
+                data_inicio = datetime.strptime(str(data_inicio_str).strip()[:10], "%Y-%m-%d")
+        except Exception:
+            data_inicio = datetime.now() + timedelta(days=1)
 
     # Padrão: Segunda a Sexta (0, 1, 2, 3, 4) se não especificado
     if dias_semana is None or len(dias_semana) == 0:

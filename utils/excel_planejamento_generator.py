@@ -4,8 +4,9 @@ import math
 import zipfile
 import unicodedata
 import openpyxl
+from openpyxl.cell.cell import MergedCell
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, coordinate_to_tuple
 from datetime import datetime
 from utils.texto_utils import limpar_numeracao_texto, limpar_numeracao_item
 
@@ -148,6 +149,152 @@ def normalizar_texto_chave(txt):
     return re.sub(r"[^a-zA-Z0-9\s]", " ", s).strip().lower()
 
 
+def _sanitizar_nome_arquivo(texto, padrao="UC", max_len=60):
+    """Converte um texto para nome de arquivo ASCII seguro (compatível com Supabase Storage e HTTP)."""
+    base = unicodedata.normalize("NFKD", str(texto or "")).encode("ASCII", "ignore").decode("ASCII")
+    limpo = re.sub(r"[^A-Za-z0-9_-]+", "_", base).strip("_-")
+    if not limpo:
+        limpo = padrao
+    return limpo[:max_len]
+
+
+def _carregar_workbook_excel(caminho_modelo: str, data_only: bool = False):
+    """
+    Carrega uma planilha Excel (.xlsx, .xlsm ou .xls antigo 97-2003) como openpyxl.Workbook.
+    Arquivos .xls são convertidos em memória via xlrd preservando abas, valores e células mescladas.
+    """
+    ext = os.path.splitext(caminho_modelo)[1].lower()
+    if ext == ".xls":
+        import xlrd
+
+        try:
+            book_xls = xlrd.open_workbook(caminho_modelo, formatting_info=True, ignore_workbook_corruption=True)
+        except Exception:
+            book_xls = xlrd.open_workbook(caminho_modelo, formatting_info=False, ignore_workbook_corruption=True)
+
+        wb = openpyxl.Workbook()
+        # Remove a aba vazia padrão
+        wb.remove(wb.active)
+
+        for idx_aba in range(book_xls.nsheets):
+            sh = book_xls.sheet_by_index(idx_aba)
+            titulo_aba = (sh.name or f"Planilha{idx_aba + 1}")[:31]
+            ws = wb.create_sheet(title=titulo_aba)
+            for r in range(sh.nrows):
+                for c in range(sh.ncols):
+                    val = sh.cell_value(r, c)
+                    ctype = sh.cell_type(r, c)
+                    if ctype == xlrd.XL_CELL_DATE:
+                        try:
+                            dt_tuple = xlrd.xldate_as_tuple(val, book_xls.datemode)
+                            val = datetime(*dt_tuple[:6])
+                        except Exception:
+                            pass
+                    if val != "":
+                        ws.cell(row=r + 1, column=c + 1, value=val)
+
+            for rlo, rhi, clo, chi in getattr(sh, "merged_cells", []):
+                try:
+                    if rhi > rlo and chi > clo:
+                        ws.merge_cells(
+                            start_row=rlo + 1,
+                            start_column=clo + 1,
+                            end_row=rhi,
+                            end_column=chi,
+                        )
+                except Exception:
+                    pass
+
+        if not wb.sheetnames:
+            wb.create_sheet(title="Planejamento")
+        return wb
+
+    return openpyxl.load_workbook(caminho_modelo, data_only=data_only)
+
+
+def _obter_range_mesclado(ws, row: int, col: int):
+    """Retorna o CellRange mesclado que contém (row, col), ou None."""
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row <= row <= rng.max_row and rng.min_col <= col <= rng.max_col:
+            return rng
+    return None
+
+
+def _escrever_celula_segura(ws, row_ou_coord, col=None, valor=None):
+    """
+    Escreve valor em uma célula do openpyxl de forma segura mesmo que a coordenada
+    caia em uma MergedCell (redireciona automaticamente para a célula âncora do merge).
+    Aceita (_escrever_celula_segura(ws, 'C5', valor=...)) ou (_escrever_celula_segura(ws, r, c, valor)).
+    """
+    if isinstance(row_ou_coord, str):
+        row, col = coordinate_to_tuple(row_ou_coord)
+    else:
+        row = row_ou_coord
+
+    cell = ws.cell(row=row, column=col)
+    if isinstance(cell, MergedCell):
+        rng = _obter_range_mesclado(ws, row, col)
+        if rng is not None:
+            cell = ws.cell(row=rng.min_row, column=rng.min_col)
+        else:
+            return None
+    cell.value = valor
+    return cell
+
+
+def _obter_celula_valor_ao_lado(ws, row: int, col: int):
+    """
+    Dado um rótulo em (row, col), retorna a célula gravável imediatamente à direita
+    do range mesclado do rótulo, resolvendo qualquer MergedCell de destino para sua âncora.
+    """
+    rng_rotulo = _obter_range_mesclado(ws, row, col)
+    ancora_rotulo = (rng_rotulo.min_row, rng_rotulo.min_col) if rng_rotulo else (row, col)
+    col_alvo = (rng_rotulo.max_col + 1) if rng_rotulo else (col + 1)
+
+    if col_alvo > max(ws.max_column + 2, 35):
+        return None
+
+    cell_alvo = ws.cell(row=row, column=col_alvo)
+    if isinstance(cell_alvo, MergedCell):
+        rng_alvo = _obter_range_mesclado(ws, row, col_alvo)
+        if rng_alvo is None:
+            return None
+        ancora_alvo = (rng_alvo.min_row, rng_alvo.min_col)
+        if ancora_alvo == ancora_rotulo:
+            return None
+        cell_alvo = ws.cell(row=ancora_alvo[0], column=ancora_alvo[1])
+
+    return cell_alvo
+
+
+def _remover_merges_a_partir_da_linha(ws, linha_inicio: int):
+    """Desmescla todos os intervalos que tocam ou estão abaixo de linha_inicio."""
+    ranges_para_remover = [
+        rng for rng in list(ws.merged_cells.ranges)
+        if rng.max_row >= linha_inicio
+    ]
+    for rng in ranges_para_remover:
+        try:
+            ws.merged_cells.remove(rng)
+        except Exception:
+            pass
+
+
+def _celula_sem_borda(cell) -> bool:
+    """Verifica com segurança se a célula não possui estilo de borda esquerda definido."""
+    if not cell or not cell.border or not cell.border.left:
+        return True
+    return not bool(cell.border.left.style)
+
+
+def _obter_planilha_ativa_segura(wb):
+    """Retorna a planilha ativa (garantindo que seja uma Worksheet e não Chartsheet)."""
+    ws = wb.active
+    if ws is None or not hasattr(ws, "cell"):
+        ws = wb.worksheets[0] if wb.worksheets else wb.create_sheet(title="Planejamento")
+    return ws
+
+
 def obter_situacao_aprendizagem_padrao(aula, dados_cabecalho):
     """
     Retorna a situação de aprendizagem contextualizada. Se for instituição SENAI,
@@ -173,8 +320,8 @@ def identificar_estrutura_modelo(caminho_modelo: str) -> tuple:
         return ("qualificacao", False)
 
     try:
-        wb = openpyxl.load_workbook(caminho_modelo, data_only=True)
-        ws = wb.active
+        wb = _carregar_workbook_excel(caminho_modelo, data_only=True)
+        ws = _obter_planilha_ativa_segura(wb)
 
         # Inspeciona cabeçalhos para detectar modelo técnico padrão/oficial
         val_d11 = normalizar_texto_chave(ws.cell(row=11, column=4).value or "")
@@ -296,10 +443,10 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
     """
     Preenche uma planilha de planejamento docente personalizada enviada pelo professor ou instituição,
     detectando dinamicamente os cabeçalhos institucionais e as colunas da tabela de aulas.
-    Preserva estilos, fontes, fórmulas e identidades visuais originais.
+    Preserva estilos, fontes, fórmulas, células mescladas e identidades visuais originais.
     """
-    wb = openpyxl.load_workbook(caminho_modelo)
-    ws = wb.active
+    wb = _carregar_workbook_excel(caminho_modelo)
+    ws = _obter_planilha_ativa_segura(wb)
 
     # 1. Localiza a linha do cabeçalho da tabela de aulas
     linha_cabecalho = None
@@ -320,8 +467,8 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
         "dia": ["aula", "dia", "encontro", "no", "item", "seq"]
     }
 
-    limite_busca_linhas = min(ws.max_row + 1, 35)
-    limite_busca_cols = min(ws.max_column + 1, 30)
+    limite_busca_linhas = min(max(ws.max_row, 1) + 1, 40)
+    limite_busca_cols = min(max(ws.max_column, 1) + 1, 35)
 
     for r in range(1, limite_busca_linhas):
         col_map_temp = {}
@@ -345,64 +492,76 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
     print(f"[INFO] Mapeamento de colunas detectado: {mapeamento_colunas}")
 
     # 2. Preenche os campos institucionais do cabeçalho (linhas acima da tabela de aulas)
-    limite_cabecalho = (linha_cabecalho - 1) if linha_cabecalho else min(12, ws.max_row)
+    # Usa _obter_celula_valor_ao_lado para lidar com rótulos e campos em células mescladas sem erro read-only
+    limite_cabecalho = (linha_cabecalho - 1) if linha_cabecalho else min(12, max(ws.max_row, 1))
     for r in range(1, limite_cabecalho + 1):
         for c in range(1, limite_busca_cols):
-            val = normalizar_texto_chave(ws.cell(row=r, column=c).value or "")
-            if not val or len(val) > 40:
+            cell_atual = ws.cell(row=r, column=c)
+            if isinstance(cell_atual, MergedCell):
+                continue
+            val = normalizar_texto_chave(cell_atual.value or "")
+            if not val or len(val) > 45:
                 continue
 
-            # Se encontrou rótulo de curso
+            valor_inserir = None
             if any(k in val for k in ["curso", "nome do curso"]):
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = str(dados_cabecalho.get("nome_curso", "")).strip().upper()
-
-            # Unidade Curricular / Componente Curricular / Disciplina
+                valor_inserir = str(dados_cabecalho.get("nome_curso", "")).strip().upper()
             elif any(k in val for k in ["unidade curricular", "componente", "disciplina", "uc"]):
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = str(dados_cabecalho.get("unidade_curricular", "")).strip()
-
-            # Turma
+                valor_inserir = str(dados_cabecalho.get("unidade_curricular", "")).strip()
             elif "turma" in val and len(val) < 20:
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = str(dados_cabecalho.get("codigo_turma", "")).strip().upper()
-
-            # Professor / Docente / Instrutor
+                valor_inserir = str(dados_cabecalho.get("codigo_turma", "")).strip().upper()
             elif any(k in val for k in ["professor", "docente", "instrutor"]):
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = str(dados_cabecalho.get("instrutor", "")).strip().upper()
-
-            # Unidade Escolar / Instituição
+                valor_inserir = str(dados_cabecalho.get("instrutor", "")).strip().upper()
             elif any(k in val for k in ["unidade escolar", "escola", "instituicao", "centro"]) and dados_cabecalho.get("unidade_escolar"):
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = str(dados_cabecalho["unidade_escolar"]).strip()
-
-            # Carga Horária Total
-            elif any(k in val for k in ["carga horaria total", "ch total", "ch da uc"]):
-                alvo = ws.cell(row=r, column=c + 1)
-                if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                    alvo.value = dados_cabecalho.get("carga_horaria", "")
-
-            # Período / Datas
+                valor_inserir = str(dados_cabecalho["unidade_escolar"]).strip()
+            elif any(k in val for k in ["carga horaria total", "ch total", "ch da uc", "carga horaria"]):
+                valor_inserir = dados_cabecalho.get("carga_horaria", "")
             elif any(k in val for k in ["periodo", "datas"]):
                 d_ini = dados_cabecalho.get("data_inicio", "")
                 d_fim = dados_cabecalho.get("data_fim", "")
                 if d_ini and d_fim:
-                    alvo = ws.cell(row=r, column=c + 1)
-                    if not alvo.value or str(alvo.value).strip() in ("", ":", "-"):
-                        alvo.value = f"{d_ini} a {d_fim}"
+                    valor_inserir = f"{d_ini} a {d_fim}"
+
+            if valor_inserir is not None and str(valor_inserir).strip():
+                alvo = _obter_celula_valor_ao_lado(ws, r, c)
+                if alvo is not None and (not alvo.value or str(alvo.value).strip() in ("", ":", "-")):
+                    alvo.value = valor_inserir
 
     # 3. Preenche as linhas de aulas
-    linha_inicio_dados = (linha_cabecalho + 1) if linha_cabecalho else 13
+    # Avança além de eventual linha de cabeçalho mesclada verticalmente (ex: cabeçalho em 2 linhas)
+    if linha_cabecalho:
+        max_row_cab = linha_cabecalho
+        for rng in ws.merged_cells.ranges:
+            if rng.min_row <= linha_cabecalho <= rng.max_row:
+                max_row_cab = max(max_row_cab, rng.max_row)
+        linha_inicio_dados = max_row_cab + 1
+    else:
+        linha_inicio_dados = 13
 
-    # Se não mapeou coluna de conteúdo, assume a coluna 1 ou 2
+    # Captura padrão de merges horizontais da primeira linha de dados (se existir no modelo)
+    merges_horizontais_modelo = []
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row == linha_inicio_dados and rng.max_row == linha_inicio_dados and rng.max_col > rng.min_col:
+            merges_horizontais_modelo.append((rng.min_col, rng.max_col))
+
+    # Remove merges e linhas antigas de exemplo a partir de linha_inicio_dados para evitar MergedCell read-only
+    _remover_merges_a_partir_da_linha(ws, linha_inicio_dados)
+    if ws.max_row >= linha_inicio_dados:
+        ws.delete_rows(linha_inicio_dados, ws.max_row - linha_inicio_dados + 1)
+
+    # Se não mapeou coluna de conteúdo, assume a coluna 1
     if "conteudo" not in mapeamento_colunas:
         mapeamento_colunas["conteudo"] = 1
+
+    # Garante que nenhuma coluna mapeada caia dentro do meio de um merge horizontal do modelo
+    if merges_horizontais_modelo:
+        for k_col, col_num in list(mapeamento_colunas.items()):
+            for c_min, c_max in merges_horizontais_modelo:
+                if c_min <= col_num <= c_max:
+                    mapeamento_colunas[k_col] = c_min
+                    break
+
+    max_col_usada = max([limite_busca_cols - 1] + list(mapeamento_colunas.values()) + [c_max for _, c_max in merges_horizontais_modelo])
 
     fonte_padrao = Font(name="Calibri", size=10)
     borda_fina = Border(
@@ -426,56 +585,50 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
             texto_conteudo = cap or con or "Desenvolvimento de competências técnicas"
 
         if "dia" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["dia"], value=f"Aula {idx+1}")
+            _escrever_celula_segura(ws, r, mapeamento_colunas["dia"], f"Aula {idx+1}")
 
         if "conteudo" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["conteudo"], value=texto_conteudo)
+            _escrever_celula_segura(ws, r, mapeamento_colunas["conteudo"], texto_conteudo)
 
         if "estrategia" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["estrategia"], value=str(aula.get("estrategia", "")).strip())
+            _escrever_celula_segura(ws, r, mapeamento_colunas["estrategia"], str(aula.get("estrategia", "")).strip())
 
         if "ambiente" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["ambiente"], value=str(aula.get("ambiente", "Sala / Laboratório")).strip())
+            _escrever_celula_segura(ws, r, mapeamento_colunas["ambiente"], str(aula.get("ambiente", "Sala / Laboratório")).strip())
 
         if "recursos" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["recursos"], value=str(aula.get("recursos", "Computadores / Recursos Didáticos")).strip())
+            _escrever_celula_segura(ws, r, mapeamento_colunas["recursos"], str(aula.get("recursos", "Computadores / Recursos Didáticos")).strip())
 
         if "carga_horaria" in mapeamento_colunas:
             ch_val = str(aula.get("carga_horaria_str") or f"{aula.get('horas_aula', 4)}h")
-            ws.cell(row=r, column=mapeamento_colunas["carga_horaria"], value=ch_val)
+            _escrever_celula_segura(ws, r, mapeamento_colunas["carga_horaria"], ch_val)
 
         if "criterios" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["criterios"], value=str(aula.get("criterios", "")).strip())
+            _escrever_celula_segura(ws, r, mapeamento_colunas["criterios"], str(aula.get("criterios", "")).strip())
 
         if "instrumentos" in mapeamento_colunas:
-            ws.cell(row=r, column=mapeamento_colunas["instrumentos"], value=str(aula.get("instrumentos", "")).strip())
+            _escrever_celula_segura(ws, r, mapeamento_colunas["instrumentos"], str(aula.get("instrumentos", "")).strip())
 
         if "situacao" in mapeamento_colunas:
             sa_texto = obter_situacao_aprendizagem_padrao(aula, dados_cabecalho)
-            ws.cell(row=r, column=mapeamento_colunas["situacao"], value=sa_texto)
+            _escrever_celula_segura(ws, r, mapeamento_colunas["situacao"], sa_texto)
 
         dt_ini = aula.get("data_inicio")
         dt_fim = aula.get("data_fim", dt_ini)
         if "data_inicio" in mapeamento_colunas:
-            c_dt = ws.cell(row=r, column=mapeamento_colunas["data_inicio"])
-            if isinstance(dt_ini, datetime):
-                c_dt.value = dt_ini.strftime("%d/%m/%Y")
-            else:
-                c_dt.value = str(dt_ini) if dt_ini else ""
+            val_dt = dt_ini.strftime("%d/%m/%Y") if isinstance(dt_ini, datetime) else (str(dt_ini) if dt_ini else "")
+            _escrever_celula_segura(ws, r, mapeamento_colunas["data_inicio"], val_dt)
 
         if "data_fim" in mapeamento_colunas and mapeamento_colunas["data_fim"] != mapeamento_colunas.get("data_inicio"):
-            c_dt2 = ws.cell(row=r, column=mapeamento_colunas["data_fim"])
-            if isinstance(dt_fim, datetime):
-                c_dt2.value = dt_fim.strftime("%d/%m/%Y")
-            else:
-                c_dt2.value = str(dt_fim) if dt_fim else ""
+            val_dt2 = dt_fim.strftime("%d/%m/%Y") if isinstance(dt_fim, datetime) else (str(dt_fim) if dt_fim else "")
+            _escrever_celula_segura(ws, r, mapeamento_colunas["data_fim"], val_dt2)
 
-        # Aplica estilos e bordas
-        for col_idx in range(1, limite_busca_cols):
+        # Aplica estilos e bordas com segurança
+        for col_idx in range(1, max_col_usada + 1):
             c_cell = ws.cell(row=r, column=col_idx)
             if not c_cell.font or c_cell.font.name != "Calibri":
                 c_cell.font = fonte_padrao
-            if not c_cell.border or not c_cell.border.left.style:
+            if _celula_sem_borda(c_cell):
                 c_cell.border = borda_fina
             if col_idx == mapeamento_colunas.get("conteudo"):
                 c_cell.alignment = alin_esquerda
@@ -483,6 +636,13 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
                 c_cell.alignment = alin_centro
             else:
                 c_cell.alignment = alin_esquerda
+
+        # Reaplica merges horizontais da linha modelo, se houver
+        for c_min, c_max in merges_horizontais_modelo:
+            try:
+                ws.merge_cells(start_row=r, start_column=c_min, end_row=r, end_column=c_max)
+            except Exception:
+                pass
 
         ws.row_dimensions[r].height = calcular_altura_linha(
             texto_conteudo,
@@ -495,7 +655,7 @@ def _gerar_excel_customizado(dados_cabecalho, aulas, caminho_modelo, caminho_sai
     if not caminho_saida:
         os.makedirs("outputs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_uc_safe = "".join(c for c in dados_cabecalho.get("unidade_curricular", "UC") if c.isalnum() or c in (" ", "_", "-")).strip()
+        nome_uc_safe = _sanitizar_nome_arquivo(dados_cabecalho.get("unidade_curricular", "UC"))
         caminho_saida = f"outputs/Planejamento_Docente_Personalizado_{nome_uc_safe}_{timestamp}.xlsx"
 
     wb.save(caminho_saida)
@@ -518,14 +678,14 @@ def _gerar_excel_qualificacao(dados_cabecalho, aulas, caminho_modelo, caminho_sa
       R    = Data Início
       S    = Data Fim
     """
-    wb = openpyxl.load_workbook(caminho_modelo)
-    ws = wb.active
+    wb = _carregar_workbook_excel(caminho_modelo)
+    ws = _obter_planilha_ativa_segura(wb)
 
     # ==========================================
     # 1. ATUALIZA O CABEÇALHO (Linhas 5 a 8)
     # ==========================================
     if dados_cabecalho.get("unidade_escolar"):
-        ws["C5"] = str(dados_cabecalho["unidade_escolar"]).strip()
+        _escrever_celula_segura(ws, "C5", valor=str(dados_cabecalho["unidade_escolar"]).strip())
 
     data_ini = dados_cabecalho.get("data_inicio", "")
     data_fim = dados_cabecalho.get("data_fim", "")
@@ -534,40 +694,35 @@ def _gerar_excel_qualificacao(dados_cabecalho, aulas, caminho_modelo, caminho_sa
     if isinstance(data_fim, datetime):
         data_fim = data_fim.strftime("%d/%m/%Y")
     if data_ini and data_fim:
-        ws["L5"] = f"{data_ini} a {data_fim}"
+        _escrever_celula_segura(ws, "L5", valor=f"{data_ini} a {data_fim}")
     elif data_ini:
-        ws["L5"] = f"A partir de {data_ini}"
+        _escrever_celula_segura(ws, "L5", valor=f"A partir de {data_ini}")
 
     if dados_cabecalho.get("nome_curso"):
-        ws["C6"] = str(dados_cabecalho["nome_curso"]).strip().upper()
+        _escrever_celula_segura(ws, "C6", valor=str(dados_cabecalho["nome_curso"]).strip().upper())
 
     modalidade = dados_cabecalho.get("modalidade", "QUALIFICAÇÃO PROFISSIONAL")
-    ws["L6"] = f" {modalidade.strip().upper()} "
+    _escrever_celula_segura(ws, "L6", valor=f" {modalidade.strip().upper()} ")
 
     turma = dados_cabecalho.get("codigo_turma", "QUAL.2026.1")
-    ws["C7"] = f" {turma.strip().upper()}"
+    _escrever_celula_segura(ws, "C7", valor=f" {turma.strip().upper()}")
 
     if dados_cabecalho.get("carga_horaria"):
         try:
-            ws["L7"] = float(dados_cabecalho["carga_horaria"])
+            _escrever_celula_segura(ws, "L7", valor=float(dados_cabecalho["carga_horaria"]))
         except (ValueError, TypeError):
-            ws["L7"] = str(dados_cabecalho["carga_horaria"])
+            _escrever_celula_segura(ws, "L7", valor=str(dados_cabecalho["carga_horaria"]))
 
     if dados_cabecalho.get("unidade_curricular"):
-        ws["C8"] = str(dados_cabecalho["unidade_curricular"]).strip()
+        _escrever_celula_segura(ws, "C8", valor=str(dados_cabecalho["unidade_curricular"]).strip())
 
     if dados_cabecalho.get("instrutor"):
-        ws["L8"] = str(dados_cabecalho["instrutor"]).strip().upper()
+        _escrever_celula_segura(ws, "L8", valor=str(dados_cabecalho["instrutor"]).strip().upper())
 
     # ==========================================
     # 2. LIMPAR LINHAS DE DADOS (a partir da linha 13)
     # ==========================================
-    ranges_para_remover = [
-        rng for rng in list(ws.merged_cells.ranges)
-        if rng.min_row >= 13
-    ]
-    for rng in ranges_para_remover:
-        ws.merged_cells.remove(rng)
+    _remover_merges_a_partir_da_linha(ws, 13)
 
     if ws.max_row >= 13:
         ws.delete_rows(13, ws.max_row - 12)
@@ -662,7 +817,7 @@ def _gerar_excel_qualificacao(dados_cabecalho, aulas, caminho_modelo, caminho_sa
     if not caminho_saida:
         os.makedirs("outputs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_uc_safe = "".join(c for c in dados_cabecalho.get("unidade_curricular", "UC") if c.isalnum() or c in (" ", "_", "-")).strip()
+        nome_uc_safe = _sanitizar_nome_arquivo(dados_cabecalho.get("unidade_curricular", "UC"))
         caminho_saida = f"outputs/Planejamento_Docente_Qualificacao_{nome_uc_safe}_{timestamp}.xlsx"
 
     wb.save(caminho_saida)
@@ -693,14 +848,14 @@ def _gerar_excel_tecnico(dados_cabecalho, aulas, caminho_modelo, caminho_saida, 
       S   (19)    = Quando - Início
       T   (20)    = Quando - Fim
     """
-    wb = openpyxl.load_workbook(caminho_modelo)
-    ws = wb.active
+    wb = _carregar_workbook_excel(caminho_modelo)
+    ws = _obter_planilha_ativa_segura(wb)
 
     # ==========================================
     # 1. ATUALIZA O CABEÇALHO (Linhas 5 a 8)
     # ==========================================
     if dados_cabecalho.get("unidade_escolar"):
-        ws["C5"] = str(dados_cabecalho["unidade_escolar"]).strip()
+        _escrever_celula_segura(ws, "C5", valor=str(dados_cabecalho["unidade_escolar"]).strip())
 
     data_ini = dados_cabecalho.get("data_inicio", "")
     data_fim = dados_cabecalho.get("data_fim", "")
@@ -709,40 +864,35 @@ def _gerar_excel_tecnico(dados_cabecalho, aulas, caminho_modelo, caminho_saida, 
     if isinstance(data_fim, datetime):
         data_fim = data_fim.strftime("%d/%m/%Y")
     if data_ini and data_fim:
-        ws["M5"] = f"{data_ini} à {data_fim}"
+        _escrever_celula_segura(ws, "M5", valor=f"{data_ini} à {data_fim}")
     elif data_ini:
-        ws["M5"] = f"A partir de {data_ini}"
+        _escrever_celula_segura(ws, "M5", valor=f"A partir de {data_ini}")
 
     if dados_cabecalho.get("nome_curso"):
-        ws["C6"] = str(dados_cabecalho["nome_curso"]).strip().upper()
+        _escrever_celula_segura(ws, "C6", valor=str(dados_cabecalho["nome_curso"]).strip().upper())
 
     modalidade = dados_cabecalho.get("modalidade", "HABILITAÇÃO TÉCNICA")
-    ws["M6"] = f" {modalidade.strip().upper()} "
+    _escrever_celula_segura(ws, "M6", valor=f" {modalidade.strip().upper()} ")
 
     turma = dados_cabecalho.get("codigo_turma", "TEC.2026.1")
-    ws["C7"] = f" {turma.strip().upper()}"
+    _escrever_celula_segura(ws, "C7", valor=f" {turma.strip().upper()}")
 
     if dados_cabecalho.get("carga_horaria"):
         try:
-            ws["M7"] = float(dados_cabecalho["carga_horaria"])
+            _escrever_celula_segura(ws, "M7", valor=float(dados_cabecalho["carga_horaria"]))
         except (ValueError, TypeError):
-            ws["M7"] = str(dados_cabecalho["carga_horaria"])
+            _escrever_celula_segura(ws, "M7", valor=str(dados_cabecalho["carga_horaria"]))
 
     if dados_cabecalho.get("unidade_curricular"):
-        ws["C8"] = str(dados_cabecalho["unidade_curricular"]).strip()
+        _escrever_celula_segura(ws, "C8", valor=str(dados_cabecalho["unidade_curricular"]).strip())
 
     if dados_cabecalho.get("instrutor"):
-        ws["M8"] = str(dados_cabecalho["instrutor"]).strip().upper()
+        _escrever_celula_segura(ws, "M8", valor=str(dados_cabecalho["instrutor"]).strip().upper())
 
     # ==========================================
     # 2. LIMPAR LINHAS DE DADOS DE EXEMPLO (a partir da linha 13)
     # ==========================================
-    ranges_para_remover = [
-        rng for rng in list(ws.merged_cells.ranges)
-        if rng.min_row >= 13
-    ]
-    for rng in ranges_para_remover:
-        ws.merged_cells.remove(rng)
+    _remover_merges_a_partir_da_linha(ws, 13)
 
     if ws.max_row >= 13:
         ws.delete_rows(13, ws.max_row - 12)
@@ -855,7 +1005,7 @@ def _gerar_excel_tecnico(dados_cabecalho, aulas, caminho_modelo, caminho_saida, 
     if not caminho_saida:
         os.makedirs("outputs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nome_uc_safe = "".join(c for c in dados_cabecalho.get("unidade_curricular", "UC") if c.isalnum() or c in (" ", "_", "-")).strip()
+        nome_uc_safe = _sanitizar_nome_arquivo(dados_cabecalho.get("unidade_curricular", "UC"))
         caminho_saida = f"outputs/Planejamento_Docente_Tecnico_{nome_uc_safe}_{timestamp}.xlsx"
 
     wb.save(caminho_saida)

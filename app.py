@@ -97,6 +97,7 @@ from utils.security import (
 import os
 import re
 import json
+import traceback
 
 
 IS_PRODUCTION = (
@@ -2788,6 +2789,34 @@ def baixar_plano(plano_id):
 # =========================
 # PLANEJAMENTO DOCENTE
 # =========================
+def _para_int_seguro(valor, padrao, minimo=1):
+    """Converte valor de formulário para inteiro positivo sem lançar ValueError."""
+    if valor is None:
+        return padrao
+    texto = str(valor).strip().replace(",", ".")
+    m = re.search(r"-?\d+(?:\.\d+)?", texto)
+    if not m:
+        return padrao
+    try:
+        num = int(round(float(m.group(0))))
+        return max(minimo, num) if minimo is not None else num
+    except (ValueError, TypeError):
+        return padrao
+
+
+def _normalizar_data_sql(data_str):
+    """Normaliza data (YYYY-MM-DD ou DD/MM/YYYY) para formato ISO aceito por coluna DATE do PostgreSQL."""
+    if not data_str:
+        return None
+    s = str(data_str).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
 @app.route("/planejamento_docente", methods=["GET", "POST"])
 def planejamento_docente():
 
@@ -2796,21 +2825,25 @@ def planejamento_docente():
 
     if request.method == "POST":
 
-        nome_curso         = request.form["nome_curso"]
-        unidade_curricular = request.form["unidade_curricular"]
-        codigo_turma       = request.form.get("codigo_turma", "TEC.2026.1")
-        modalidade         = request.form.get("modalidade", "HABILITAÇÃO TÉCNICA")
-        unidade_escolar    = request.form.get("unidade_escolar", "")
-        tipo_cronograma    = request.form.get("tipo_cronograma", "horas")
-        duracao_aula       = int(request.form.get("duracao_aula", 50) or 50)
-        data_inicio_str    = request.form.get("data_inicio", "")
-        data_fim_str       = request.form.get("data_fim", "")
+        nome_curso         = request.form.get("nome_curso", "").strip()
+        unidade_curricular = request.form.get("unidade_curricular", "").strip()
+        if not nome_curso or not unidade_curricular:
+            flash("Informe o nome do curso/série e o componente curricular (disciplina).", "warning")
+            return redirect("/planejamento_docente")
+
+        codigo_turma       = request.form.get("codigo_turma", "TEC.2026.1").strip() or "TEC.2026.1"
+        modalidade         = request.form.get("modalidade", "HABILITAÇÃO TÉCNICA").strip() or "HABILITAÇÃO TÉCNICA"
+        unidade_escolar    = request.form.get("unidade_escolar", "").strip()
+        tipo_cronograma    = request.form.get("tipo_cronograma", "horas").strip()
+        duracao_aula       = _para_int_seguro(request.form.get("duracao_aula"), 50, minimo=10)
+        data_inicio_str    = request.form.get("data_inicio", "").strip()
+        data_fim_str       = request.form.get("data_fim", "").strip()
 
         if tipo_cronograma == "aulas":
-            aulas_bimestre = int(request.form.get("aulas_bimestre") or 40)
+            aulas_bimestre = _para_int_seguro(request.form.get("aulas_bimestre"), 40, minimo=1)
             aulas_por_dia_raw = request.form.get("aulas_por_dia")
-            if aulas_por_dia_raw:
-                aulas_por_dia = max(1, int(aulas_por_dia_raw))
+            if aulas_por_dia_raw and str(aulas_por_dia_raw).strip():
+                aulas_por_dia = _para_int_seguro(aulas_por_dia_raw, 2, minimo=1)
                 total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
             else:
                 aulas_por_dia = 1
@@ -2818,10 +2851,8 @@ def planejamento_docente():
             carga_horaria = int(round((aulas_bimestre * duracao_aula) / 60)) or aulas_bimestre
             horas_por_dia = max(1, int(round((aulas_por_dia * duracao_aula) / 60))) or 1
         else:
-            carga_horaria      = int(request.form.get("carga_horaria") or 80)
-            horas_por_dia      = int(request.form.get("horas_por_dia") or 4)
-            if horas_por_dia <= 0:
-                horas_por_dia = 1
+            carga_horaria      = _para_int_seguro(request.form.get("carga_horaria"), 80, minimo=1)
+            horas_por_dia      = _para_int_seguro(request.form.get("horas_por_dia"), 4, minimo=1)
             total_aulas = -(-carga_horaria // horas_por_dia)  # Divisão com teto
 
         print("=" * 60)
@@ -2847,18 +2878,20 @@ def planejamento_docente():
         formato_modelo = "excel" if eh_tecnico_ou_qualif else "word"
 
         if arquivo_modelo and arquivo_modelo.filename:
-            nome_modelo = secure_filename(arquivo_modelo.filename)
-            ext_modelo = os.path.splitext(nome_modelo)[1].lower()
-            if ext_modelo in (".xlsx", ".xls"):
-                caminho_modelo_custom = os.path.join(pasta_upload, f"modelo_custom_{nome_modelo}")
+            ext_original = os.path.splitext(arquivo_modelo.filename)[1].lower()
+            nome_modelo = secure_filename(arquivo_modelo.filename) or f"modelo{ext_original}"
+            ext_modelo = os.path.splitext(nome_modelo)[1].lower() or ext_original
+            prefixo_unico = f"modelo_custom_{session['usuario_id']}_{int(datetime.now().timestamp() * 1000)}"
+            if ext_modelo in (".xlsx", ".xls", ".xlsm"):
+                caminho_modelo_custom = os.path.join(pasta_upload, f"{prefixo_unico}_{nome_modelo}")
                 arquivo_modelo.save(caminho_modelo_custom)
                 formato_modelo = "excel"
                 print(f"[INFO] Modelo de planejamento Excel enviado: {caminho_modelo_custom}")
             elif ext_modelo in (".docx", ".doc"):
-                caminho_modelo_custom = os.path.join(pasta_upload, f"modelo_custom_{nome_modelo}")
+                caminho_modelo_custom = os.path.join(pasta_upload, f"{prefixo_unico}_{nome_modelo}")
                 arquivo_modelo.save(caminho_modelo_custom)
                 formato_modelo = "word"
-                print(f"[INFO] Modelo de planejamento Word (.docx) enviado: {caminho_modelo_custom}")
+                print(f"[INFO] Modelo de planejamento Word ({ext_modelo}) enviado: {caminho_modelo_custom}")
 
         # ----------------------------------------------------------
         # 1. Obtenção dos Dados Pedagógicos (Digitados ou via PDF)
@@ -2936,7 +2969,7 @@ def planejamento_docente():
                     VALUES (%s, %s, %s, %s)
                     RETURNING id
                     """,
-                    (f"PEI — {estudante_nome} ({unidade_curricular})", carga_horaria, horas_por_dia, session["usuario_id"])
+                    (f"PEI — {estudante_nome} ({unidade_curricular})"[:200], carga_horaria, horas_por_dia, session["usuario_id"])
                 )
                 curso_id = cursor.fetchone()[0]
 
@@ -2960,10 +2993,10 @@ def planejamento_docente():
                     RETURNING id
                     """,
                     (
-                        nome_curso, unidade_curricular, codigo_turma, unidade_escolar,
-                        carga_horaria, horas_por_dia, data_inicio_str or None, data_fim_str or None, total_aulas,
-                        None, curso_id, session["usuario_id"], modalidade,
-                        "pei_semestral", semestre_pei, estudante_nome, estudante_necessidades,
+                        nome_curso[:255], unidade_curricular[:255], codigo_turma[:100], unidade_escolar[:255],
+                        carga_horaria, horas_por_dia, _normalizar_data_sql(data_inicio_str), _normalizar_data_sql(data_fim_str), total_aulas,
+                        None, curso_id, session["usuario_id"], modalidade[:100],
+                        "pei_semestral", semestre_pei, estudante_nome[:150], estudante_necessidades,
                         recursos_tecnologicos_assistivos, payload_json
                     )
                 )
@@ -2975,7 +3008,7 @@ def planejamento_docente():
 
             return redirect(f"/planejamento/{planejamento_id}")
 
-        elif eh_cascata_escolar:
+        elif eh_cascata_escolar and not caminho_modelo_custom:
             ano_letivo = str(datetime.now().year)
             if data_inicio_str and len(data_inicio_str) >= 4 and data_inicio_str[:4].isdigit():
                 ano_letivo = data_inicio_str[:4]
@@ -2997,7 +3030,7 @@ def planejamento_docente():
                     VALUES (%s, %s, %s, %s)
                     RETURNING id
                     """,
-                    (f"{nome_curso} — {unidade_curricular}", carga_horaria, horas_por_dia, session["usuario_id"])
+                    (f"{nome_curso} — {unidade_curricular}"[:200], carga_horaria, horas_por_dia, session["usuario_id"])
                 )
                 curso_id = cursor.fetchone()[0]
 
@@ -3021,9 +3054,9 @@ def planejamento_docente():
                     RETURNING id
                     """,
                     (
-                        nome_curso, unidade_curricular, codigo_turma, unidade_escolar,
-                        carga_horaria, horas_por_dia, data_inicio_str or None, data_fim_str or None, total_aulas,
-                        None, curso_id, session["usuario_id"], modalidade,
+                        nome_curso[:255], unidade_curricular[:255], codigo_turma[:100], unidade_escolar[:255],
+                        carga_horaria, horas_por_dia, _normalizar_data_sql(data_inicio_str), _normalizar_data_sql(data_fim_str), total_aulas,
+                        None, curso_id, session["usuario_id"], modalidade[:100],
                         "anual", payload_json
                     )
                 )
@@ -3120,7 +3153,17 @@ def planejamento_docente():
 
         os.makedirs("outputs", exist_ok=True)
         if formato_modelo == "word":
-            caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
+            try:
+                caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
+            except Exception as e_modelo_word:
+                print(f"[AVISO] Falha ao preencher modelo Word customizado ({e_modelo_word}). Usando modelo padrão.")
+                traceback.print_exc()
+                caminho_gerado = gerar_docx_planejamento(dados_cabecalho, aulas, caminho_modelo=None)
+                if caminho_modelo_custom:
+                    flash(
+                        "O modelo Word enviado possui formato incompatível; o planejamento foi gerado automaticamente no modelo padrão do SGPP.",
+                        "warning",
+                    )
             nome_arquivo_gerado = os.path.basename(caminho_gerado)
             upload_arquivo_local(
                 caminho_gerado,
@@ -3130,7 +3173,17 @@ def planejamento_docente():
             print(f"[OK] Planejamento Docente (Word) gerado com sucesso: {caminho_gerado}")
         else:
             # Excel: usa o modelo customizado (se enviado) ou os modelos oficiais padrão (modelo_tecnico.xlsx / modelo_qualificacao.xlsx)
-            caminho_gerado = gerar_excel_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
+            try:
+                caminho_gerado = gerar_excel_planejamento(dados_cabecalho, aulas, caminho_modelo=caminho_modelo_custom)
+            except Exception as e_modelo_excel:
+                print(f"[AVISO] Falha ao preencher modelo Excel customizado ({e_modelo_excel}). Usando modelo padrão.")
+                traceback.print_exc()
+                caminho_gerado = gerar_excel_planejamento(dados_cabecalho, aulas, caminho_modelo=None)
+                if caminho_modelo_custom:
+                    flash(
+                        "O modelo Excel enviado possui formato incompatível ou protegido; o planejamento foi gerado automaticamente no modelo padrão do SGPP.",
+                        "warning",
+                    )
             nome_arquivo_gerado = os.path.basename(caminho_gerado)
             upload_arquivo_local(
                 caminho_gerado,
@@ -3142,6 +3195,10 @@ def planejamento_docente():
         # ----------------------------------------------------------
         # 4. Salva o Planejamento Docente e gera automaticamente os Planos de Aula
         # ----------------------------------------------------------
+        data_inicio_sql = _normalizar_data_sql(data_inicio_str)
+        data_fim_sql = _normalizar_data_sql(data_fim_str)
+        titulo_curso_bd = f"{nome_curso} — {unidade_curricular}"[:200]
+
         conn, cursor = get_cursor()
         try:
             # 4.1 Cria o registro do curso em cursos_plano
@@ -3151,7 +3208,7 @@ def planejamento_docente():
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
                 """,
-                (f"{nome_curso} — {unidade_curricular}", carga_horaria, horas_por_dia, session["usuario_id"])
+                (titulo_curso_bd, carga_horaria, horas_por_dia, session["usuario_id"])
             )
             curso_id = cursor.fetchone()[0]
 
@@ -3177,19 +3234,19 @@ def planejamento_docente():
                 RETURNING id
                 """,
                 (
-                    nome_curso,
-                    unidade_curricular,
-                    codigo_turma,
-                    unidade_escolar,
+                    nome_curso[:255],
+                    unidade_curricular[:255],
+                    codigo_turma[:100],
+                    unidade_escolar[:255],
                     carga_horaria,
                     horas_por_dia,
-                    data_inicio_str or None,
-                    data_fim_str or None,
+                    data_inicio_sql,
+                    data_fim_sql,
                     total_aulas,
-                    nome_arquivo_gerado,
+                    nome_arquivo_gerado[:255],
                     curso_id,
                     session["usuario_id"],
-                    modalidade
+                    modalidade[:100]
                 )
             )
             planejamento_id = cursor.fetchone()[0]

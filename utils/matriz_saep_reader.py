@@ -20,8 +20,11 @@ def ler_matriz_saep(caminho_arquivo):
     """
     caminho_xlsx = caminho_arquivo
 
-    # Se for .xls binário do Excel 97-2003, converte para .xlsx usando win32com se disponível
+    # Se for .xls binário do Excel 97-2003, lê diretamente com xlrd (portável Linux/Windows)
     if caminho_arquivo.lower().endswith(".xls"):
+        itens_xlrd = _ler_matriz_xlrd(caminho_arquivo)
+        if itens_xlrd:
+            return itens_xlrd
         caminho_convertido = caminho_arquivo + "x"
         if not os.path.exists(caminho_convertido):
             try:
@@ -44,6 +47,71 @@ def ler_matriz_saep(caminho_arquivo):
             caminho_xlsx = caminho_convertido
 
     return _ler_matriz_openpyxl(caminho_xlsx)
+
+
+def _ler_matriz_xlrd(caminho_xls):
+    """Lê Matriz SAEP em formato .xls (Excel 97-2003) diretamente via xlrd (funciona em Linux/Render)."""
+    itens = []
+    try:
+        import xlrd
+
+        wb = xlrd.open_workbook(caminho_xls, ignore_workbook_corruption=True)
+        mapa_relacionamento = {}
+        if "Relacionamento" in wb.sheet_names():
+            ws_rel = wb.sheet_by_name("Relacionamento")
+            for r in range(1, ws_rel.nrows):
+                cap_val = ws_rel.cell_value(r, 0) if ws_rel.ncols > 0 else ""
+                con_val = (
+                    (ws_rel.cell_value(r, 15) if ws_rel.ncols > 15 else "")
+                    or (ws_rel.cell_value(r, 6) if ws_rel.ncols > 6 else "")
+                    or (ws_rel.cell_value(r, 2) if ws_rel.ncols > 2 else "")
+                )
+                if cap_val and str(cap_val).strip().startswith("C"):
+                    cap_code = str(cap_val).split("-")[0].strip()
+                    if con_val and str(con_val).strip():
+                        mapa_relacionamento[cap_code] = str(con_val).strip()
+
+        nome_aba = "Detalhamento" if "Detalhamento" in wb.sheet_names() else wb.sheet_names()[0]
+        ws = wb.sheet_by_name(nome_aba)
+
+        bloom_atual = "Entender"
+        cap_saep_atual = ""
+        uc_atual = ""
+        modulo_atual = ""
+
+        for r in range(1, ws.nrows):
+            v_cap_saep = ws.cell_value(r, 0) if ws.ncols > 0 else ""
+            v_bloom = ws.cell_value(r, 1) if ws.ncols > 1 else ""
+            v_conhec = ws.cell_value(r, 2) if ws.ncols > 2 else ""
+            v_modulo = ws.cell_value(r, 3) if ws.ncols > 3 else ""
+            v_uc = ws.cell_value(r, 4) if ws.ncols > 4 else ""
+            v_cap_itin = ws.cell_value(r, 5) if ws.ncols > 5 else ""
+
+            if v_cap_saep and str(v_cap_saep).strip():
+                cap_saep_atual = str(v_cap_saep).strip()
+            if v_bloom and str(v_bloom).strip():
+                bloom_atual = str(v_bloom).strip()
+            if v_modulo and str(v_modulo).strip():
+                modulo_atual = str(v_modulo).strip()
+            if v_uc and str(v_uc).strip():
+                uc_atual = str(v_uc).strip()
+
+            cap_code = cap_saep_atual.split("-")[0].strip() if cap_saep_atual else ""
+            conhec_rel = mapa_relacionamento.get(cap_code, "")
+            texto_cap = str(v_cap_itin).strip() if v_cap_itin else (str(v_cap_saep).strip() if v_cap_saep else "")
+            if texto_cap and not texto_cap.upper().startswith("CAPACIDADES"):
+                itens.append({
+                    "capacidade_saep": cap_saep_atual,
+                    "detalhamento_bloom": bloom_atual,
+                    "conhecimentos": str(v_conhec).strip() if v_conhec else "",
+                    "conhecimentos_relacionados": conhec_rel,
+                    "modulo": modulo_atual,
+                    "unidade_curricular": uc_atual,
+                    "capacidade_itinerario": texto_cap,
+                })
+    except Exception as e:
+        print(f"[AVISO] Erro ao ler Matriz SAEP .xls via xlrd: {e}")
+    return itens
 
 
 def _ler_matriz_openpyxl(caminho_xlsx):

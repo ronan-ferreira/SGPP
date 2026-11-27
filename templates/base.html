@@ -196,6 +196,17 @@
 
 <!-- Conteúdo Principal -->
 <main class="main-content container-fluid px-lg-4 py-4">
+    {% with mensagens_flash = get_flashed_messages(with_categories=true) %}
+        {% if mensagens_flash %}
+            {% for categoria, mensagem in mensagens_flash %}
+                {% set alert_cls = 'alert-' + (categoria if categoria in ['success', 'info', 'warning', 'danger'] else 'info') %}
+                <div class="alert {{ alert_cls }} alert-dismissible fade show shadow-sm rounded-3 mb-3" role="alert">
+                    {{ mensagem }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     {% block conteudo %}
     {% endblock %}
 </main>
