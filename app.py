@@ -64,13 +64,16 @@ from utils.imagem_utils import otimizar_imagem_upload, processar_logo_canvas_exc
 from ia.planejamento_cascata import (
     gerar_planejamento_anual_ia,
     gerar_planejamento_semestral_ia,
+    gerar_planejamento_bimestral_ia,
     gerar_planejamento_mensal_ia,
     gerar_planos_aula_do_mes_ia,
     gerar_planejamento_pei_semestral_ia,
     gerar_planejamento_pei_mensal_ia,
     obter_meses_por_semestre,
+    obter_meses_por_bimestre,
     MESES_LETIVOS_SEMESTRE_1,
     MESES_LETIVOS_SEMESTRE_2,
+    MESES_LETIVOS_POR_BIMESTRE,
     TODOS_MESES_LETIVOS,
 )
 
@@ -814,7 +817,9 @@ def index():
                     dificuldade,
                     tipo,
                     faltantes,
-                    segmento=segmento_user
+                    segmento=segmento_user,
+                    disciplina=disciplina,
+                    curso=curso
                 )
                 # Salva as novas questões geradas pela IA no repositório
                 salvar_questoes_ia_no_repositorio(
@@ -841,7 +846,9 @@ def index():
                 dificuldade,
                 tipo,
                 quantidade,
-                segmento=segmento_user
+                segmento=segmento_user,
+                disciplina=disciplina,
+                curso=curso
             )
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=atividade_gerada,
@@ -2467,7 +2474,7 @@ def gerar_atividade_plano(id):
         else:
             # Completa as faltantes via IA
             faltantes = quantidade - qtd_encontrada
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes, segmento=segmento_plano)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2482,7 +2489,7 @@ def gerar_atividade_plano(id):
 
     elif fonte == "externo":
         # Geração externa via IA
-        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade, segmento=segmento_plano)
+        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
         salvar_questoes_ia_no_repositorio(
             texto_atividade=atividade,
             curso=curso_ident,
@@ -2511,7 +2518,7 @@ def gerar_atividade_plano(id):
         qtd_ia_necessaria = quantidade - qtd_repo
         texto_ia = ""
         if qtd_ia_necessaria > 0:
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria, segmento=segmento_plano)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2700,10 +2707,13 @@ def planejamento_docente():
 
         if tipo_cronograma == "aulas":
             aulas_bimestre = int(request.form.get("aulas_bimestre") or 40)
-            aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
-            if aulas_por_dia <= 0:
+            aulas_por_dia_raw = request.form.get("aulas_por_dia")
+            if aulas_por_dia_raw:
+                aulas_por_dia = max(1, int(aulas_por_dia_raw))
+                total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
+            else:
                 aulas_por_dia = 1
-            total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
+                total_aulas = aulas_bimestre
             carga_horaria = int(round((aulas_bimestre * duracao_aula) / 60)) or aulas_bimestre
             horas_por_dia = max(1, int(round((aulas_por_dia * duracao_aula) / 60))) or 1
         else:
@@ -2865,12 +2875,17 @@ def planejamento_docente():
             return redirect(f"/planejamento/{planejamento_id}")
 
         elif eh_cascata_escolar:
-            print(f"[CASCATA] Gerando Planejamento Anual (Educação Básica) para {nome_curso} - {unidade_curricular}...")
+            ano_letivo = str(datetime.now().year)
+            if data_inicio_str and len(data_inicio_str) >= 4 and data_inicio_str[:4].isdigit():
+                ano_letivo = data_inicio_str[:4]
+            print(f"[CASCATA] Gerando Planejamento Anual (Educação Básica) para {nome_curso} - {unidade_curricular} (Ano Letivo: {ano_letivo})...")
             texto_anual, dados_anual = gerar_planejamento_anual_ia(
                 nome_curso=nome_curso,
                 componente=unidade_curricular,
                 segmento=modalidade,
-                ementa_digitada=conteudo_digitado
+                ementa_digitada=conteudo_digitado,
+                ano_letivo=ano_letivo,
+                docente_responsavel=session.get("nome", "").strip()
             )
 
             conn, cursor = get_cursor()
@@ -2888,6 +2903,7 @@ def planejamento_docente():
                 payload_json = json.dumps({
                     "texto_anual": texto_anual,
                     "dados": dados_anual,
+                    "bimestres": {},
                     "semestres": {},
                     "mensais": {}
                 }, ensure_ascii=False)
@@ -3416,16 +3432,28 @@ def visualizar_planejamento_cascata(planejamento_id):
             dados_dict = {}
 
     semestre_selecionado = int(request.args.get("semestre") or plan[17] or 1)
+    bimestre_selecionado = int(request.args.get("bimestre") or 1)
+    if bimestre_selecionado not in (1, 2, 3, 4):
+        bimestre_selecionado = 1
+    aba_ativa = request.args.get("aba", "")
+    if aba_ativa == "semestral":
+        aba_ativa = "bimestral"
 
     meses_semestre_1 = MESES_LETIVOS_SEMESTRE_1
     meses_semestre_2 = MESES_LETIVOS_SEMESTRE_2
+    bimestres_meses = MESES_LETIVOS_POR_BIMESTRE
     meses_letivos_todos = TODOS_MESES_LETIVOS
 
     mes_ativo = request.args.get("mes_nome")
     mes_numero_ativo = request.args.get("mes")
     if not mes_ativo:
-        mes_ativo = "Fevereiro" if semestre_selecionado == 1 else "Agosto"
-        mes_numero_ativo = 2 if semestre_selecionado == 1 else 8
+        if eh_pei:
+            mes_ativo = "Fevereiro" if semestre_selecionado == 1 else "Agosto"
+            mes_numero_ativo = 2 if semestre_selecionado == 1 else 8
+        else:
+            primeiro_mes_bim = obter_meses_por_bimestre(bimestre_selecionado)[0]
+            mes_ativo = primeiro_mes_bim["nome"]
+            mes_numero_ativo = primeiro_mes_bim["numero"]
     else:
         mes_numero_ativo = int(mes_numero_ativo or 2)
 
@@ -3434,6 +3462,9 @@ def visualizar_planejamento_cascata(planejamento_id):
 
     semestres_salvos = dados_dict.get("semestres", {})
     texto_semestral = semestres_salvos.get(str(semestre_selecionado), "")
+
+    bimestres_salvos = dados_dict.get("bimestres", {})
+    texto_bimestral = bimestres_salvos.get(str(bimestre_selecionado), "")
 
     mensais_salvos = dados_dict.get("mensais", {})
     texto_mensal = mensais_salvos.get(mes_ativo, "")
@@ -3483,18 +3514,22 @@ def visualizar_planejamento_cascata(planejamento_id):
         estudante_necessidades=plan[21],
         recursos_tecnologicos_assistivos=plan[22],
         semestre_selecionado=semestre_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
         mes_ativo=mes_ativo,
         mes_numero_ativo=mes_numero_ativo,
         meses_semestre_1=meses_semestre_1,
         meses_semestre_2=meses_semestre_2,
+        bimestres_meses=bimestres_meses,
         meses_letivos_todos=meses_letivos_todos,
         texto_anual=texto_anual,
         texto_semestral=texto_semestral,
+        texto_bimestral=texto_bimestral,
         texto_mensal=texto_mensal,
         texto_pei_semestral=texto_pei_semestral,
         texto_pei_mensal=texto_pei_mensal,
         planos_mes=planos_mes,
-        contagem_planos_por_mes=contagem_planos_por_mes
+        contagem_planos_por_mes=contagem_planos_por_mes,
+        aba_ativa=aba_ativa
     )
 
 
@@ -3547,7 +3582,61 @@ def gerar_semestral_planejamento(planejamento_id):
     finally:
         release_cursor(conn, cursor)
 
-    return redirect(f"/planejamento/{planejamento_id}?semestre={semestre}")
+    return redirect(f"/planejamento/{planejamento_id}?semestre={semestre}&aba=bimestral")
+
+
+@app.route("/planejamento/<int:planejamento_id>/gerar_bimestral", methods=["POST"])
+def gerar_bimestral_planejamento(planejamento_id):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    bimestre = int(request.form.get("bimestre") or 1)
+    if bimestre not in (1, 2, 3, 4):
+        bimestre = 1
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            "SELECT id, nome_curso, unidade_curricular, modalidade, dados_json FROM planejamentos_docente WHERE id = %s AND usuario_id = %s",
+            (planejamento_id, session["usuario_id"])
+        )
+        plan = cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+    if not plan:
+        return "Planejamento não encontrado", 404
+
+    dados_dict = {}
+    if plan[4]:
+        try:
+            dados_dict = json.loads(plan[4])
+        except Exception:
+            dados_dict = {}
+
+    texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or ""
+    texto_bim, _ = gerar_planejamento_bimestral_ia(
+        planejamento_anual_texto=texto_anual,
+        componente=plan[2],
+        nome_curso=plan[1],
+        bimestre=bimestre
+    )
+
+    if "bimestres" not in dados_dict:
+        dados_dict["bimestres"] = {}
+    dados_dict["bimestres"][str(bimestre)] = texto_bim
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            "UPDATE planejamentos_docente SET dados_json = %s WHERE id = %s",
+            (json.dumps(dados_dict, ensure_ascii=False), planejamento_id)
+        )
+        conn.commit()
+    finally:
+        release_cursor(conn, cursor)
+
+    return redirect(f"/planejamento/{planejamento_id}?bimestre={bimestre}&aba=bimestral")
 
 
 @app.route("/planejamento/<int:planejamento_id>/gerar_planos_mes", methods=["POST"])
@@ -3558,6 +3647,7 @@ def gerar_planos_mes_planejamento(planejamento_id):
     mes_nome = request.form.get("mes_nome", "Fevereiro")
     mes_numero = int(request.form.get("mes_numero") or 2)
     semestre = int(request.form.get("semestre") or 1)
+    bimestre = int(request.form.get("bimestre") or 1)
     dias_semana = request.form.get("dias_semana", "Segunda, Quarta")
     aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
     duracao_aula = int(request.form.get("duracao_aula") or 50)
@@ -3625,8 +3715,13 @@ def gerar_planos_mes_planejamento(planejamento_id):
                 numero_mes=mes_numero
             )
         else:
+            ref_bimestral = (
+                dados_dict.get("bimestres", {}).get(str(bimestre))
+                or dados_dict.get("semestres", {}).get(str(semestre))
+                or dados_dict.get("texto_anual", "")
+            )
             txt_mensal, _ = gerar_planejamento_mensal_ia(
-                planejamento_semestral_texto=dados_dict.get("semestres", {}).get(str(semestre), dados_dict.get("texto_anual", "")),
+                planejamento_semestral_texto=ref_bimestral,
                 componente=plan[2],
                 nome_curso=plan[1],
                 mes_nome=mes_nome,
@@ -3689,7 +3784,8 @@ def gerar_planos_mes_planejamento(planejamento_id):
     finally:
         release_cursor(conn, cursor)
 
-    return redirect(f"/planejamento/{planejamento_id}?mes={mes_numero}&mes_nome={mes_nome}&semestre={semestre}")
+    aba_destino = "pei-aulas" if eh_pei else "mensal"
+    return redirect(f"/planejamento/{planejamento_id}?mes={mes_numero}&mes_nome={mes_nome}&semestre={semestre}&bimestre={bimestre}&aba={aba_destino}")
 
 
 # =========================

@@ -81,9 +81,19 @@
                         <i class="bi bi-person-fill me-1"></i> Aluno: <strong>{{ estudante_nome }}</strong>
                     </span>
                 {% endif %}
-                <span class="badge bg-secondary px-3 py-2 fs-6">
-                    <i class="bi bi-layers me-1"></i> {{ modalidade }}
-                </span>
+                {% set serie_lower = (planejamento[1] or '')|lower %}
+                {% set mod_lower = (modalidade or '')|lower %}
+                {% set mod_ja_na_serie = (
+                    (('médio' in serie_lower or 'medio' in serie_lower) and ('médio' in mod_lower or 'medio' in mod_lower))
+                    or ('fundamental' in serie_lower and 'fundamental' in mod_lower)
+                    or ('infantil' in serie_lower and 'infantil' in mod_lower)
+                    or (mod_lower and mod_lower in serie_lower)
+                ) %}
+                {% if modalidade and not mod_ja_na_serie %}
+                    <span class="badge bg-secondary px-3 py-2 fs-6">
+                        <i class="bi bi-layers me-1"></i> {{ modalidade|title }}
+                    </span>
+                {% endif %}
             </div>
         </div>
 
@@ -117,23 +127,25 @@
             color: #ffffff !important;
         }
     </style>
+    {% set tab_ativa = aba_ativa if aba_ativa in ['anual', 'bimestral', 'mensal'] else 'anual' %}
+    {% set tab_pei_ativa = aba_ativa if aba_ativa in ['pei-semestral', 'pei-mensal', 'pei-aulas'] else 'pei-semestral' %}
     <ul class="nav nav-pills nav-fill p-2 rounded-4 bg-white shadow-sm mb-4 border" id="cascataTabs" role="tablist">
         {% if eh_pei %}
             <!-- Abas do PEI -->
             <li class="nav-item" role="presentation">
-                <button class="nav-link active fw-bold py-3 rounded-3" id="tab-pei-semestral" data-bs-toggle="tab" data-bs-target="#content-pei-semestral" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_pei_ativa == 'pei-semestral' else '' }} fw-bold py-3 rounded-3" id="tab-pei-semestral" data-bs-toggle="tab" data-bs-target="#content-pei-semestral" type="button" role="tab">
                     <i class="bi bi-file-earmark-person-fill me-2 fs-5 text-danger"></i>
                     1. PEI Semestral (Metas &amp; DUA)
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold py-3 rounded-3" id="tab-pei-mensal" data-bs-toggle="tab" data-bs-target="#content-pei-mensal" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_pei_ativa == 'pei-mensal' else '' }} fw-bold py-3 rounded-3" id="tab-pei-mensal" data-bs-toggle="tab" data-bs-target="#content-pei-mensal" type="button" role="tab">
                     <i class="bi bi-calendar-month-fill me-2 fs-5 text-primary"></i>
                     2. Planejamento Mensal de Intervenção
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold py-3 rounded-3" id="tab-pei-aulas" data-bs-toggle="tab" data-bs-target="#content-pei-aulas" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_pei_ativa == 'pei-aulas' else '' }} fw-bold py-3 rounded-3" id="tab-pei-aulas" data-bs-toggle="tab" data-bs-target="#content-pei-aulas" type="button" role="tab">
                     <i class="bi bi-journal-check me-2 fs-5 text-primary"></i>
                     3. Planos de Aula Inclusivos do Mês
                 </button>
@@ -141,19 +153,19 @@
         {% else %}
             <!-- Abas Educação Básica (Infantil, Fundamental, Médio) -->
             <li class="nav-item" role="presentation">
-                <button class="nav-link active fw-bold py-3 rounded-3" id="tab-anual" data-bs-toggle="tab" data-bs-target="#content-anual" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_ativa == 'anual' else '' }} fw-bold py-3 rounded-3" id="tab-anual" data-bs-toggle="tab" data-bs-target="#content-anual" type="button" role="tab">
                     <i class="bi bi-calendar-check-fill me-2 fs-5 text-primary"></i>
                     1. Planejamento Anual
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold py-3 rounded-3" id="tab-semestral" data-bs-toggle="tab" data-bs-target="#content-semestral" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_ativa == 'bimestral' else '' }} fw-bold py-3 rounded-3" id="tab-bimestral" data-bs-toggle="tab" data-bs-target="#content-bimestral" type="button" role="tab">
                     <i class="bi bi-calendar-range-fill me-2 fs-5 text-primary"></i>
-                    2. Planejamento Semestral
+                    2. Planejamento Bimestral
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold py-3 rounded-3" id="tab-mensal" data-bs-toggle="tab" data-bs-target="#content-mensal" type="button" role="tab">
+                <button class="nav-link {{ 'active' if tab_ativa == 'mensal' else '' }} fw-bold py-3 rounded-3" id="tab-mensal" data-bs-toggle="tab" data-bs-target="#content-mensal" type="button" role="tab">
                     <i class="bi bi-calendar3 me-2 fs-5 text-primary"></i>
                     3. Planejamento Mensal &amp; Planos de Aula
                 </button>
@@ -168,7 +180,7 @@
         <!-- ========================================== -->
         <!-- ABA 1: PLANEJAMENTO ANUAL                  -->
         <!-- ========================================== -->
-        <div class="tab-pane fade show active" id="content-anual" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_ativa == 'anual' else '' }}" id="content-anual" role="tabpanel">
             <div class="card-modern shadow-md mb-4">
                 <div class="card-header-modern bg-white d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
                     <div>
@@ -201,11 +213,11 @@
                             <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
                             <div>
                                 <strong class="d-block text-dark">Próximo Passo no Fluxo:</strong>
-                                <span class="small text-muted">Acesse a aba <strong>2. Planejamento Semestral</strong> para detalhar as habilidades e conteúdos do 1º e 2º Semestres.</span>
+                                <span class="small text-muted">Acesse a aba <strong>2. Planejamento Bimestral</strong> para detalhar as habilidades e conteúdos do 1º ao 4º Bimestre.</span>
                             </div>
                         </div>
-                        <button class="btn btn-primary fw-bold px-4" onclick="irParaAba('tab-semestral')">
-                            Avançar para Semestral <i class="bi bi-arrow-right ms-1"></i>
+                        <button class="btn btn-primary fw-bold px-4" onclick="irParaAba('tab-bimestral')">
+                            Avançar para Bimestral <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
                 </div>
@@ -213,18 +225,18 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- ABA 2: PLANEJAMENTO SEMESTRAL              -->
+        <!-- ABA 2: PLANEJAMENTO BIMESTRAL (4 BIMESTRES)-->
         <!-- ========================================== -->
-        <div class="tab-pane fade" id="content-semestral" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_ativa == 'bimestral' else '' }}" id="content-bimestral" role="tabpanel">
             <div class="card-modern shadow-md mb-4">
                 <div class="card-header-modern bg-white d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-3">
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <span class="badge bg-primary text-white rounded-pill px-3 py-1 fw-bold">
-                                {{ semestre_selecionado }}º Semestre
+                                {{ bimestre_selecionado }}º Bimestre
                             </span>
                             <h3 class="mb-0 fw-bold text-dark fs-5">
-                                Planejamento Semestral
+                                Planejamento Bimestral
                             </h3>
                         </div>
                         <div class="text-muted small">
@@ -232,38 +244,44 @@
                         </div>
                     </div>
 
-                    <!-- Seletor de Semestre -->
+                    <!-- Seletor de Bimestre (4 Bimestres) -->
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        {% if texto_semestral %}
-                        <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="copiarTexto('textoSemestral')">
+                        {% if texto_bimestral %}
+                        <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="copiarTexto('textoBimestral')">
                             <i class="bi bi-clipboard me-1"></i> Copiar Texto
                         </button>
                         {% endif %}
-                        <div class="btn-group btn-group-sm" role="group">
-                            <a href="/planejamento/{{ planejamento[0] }}?semestre=1" class="btn {{ 'btn-primary text-white' if semestre_selecionado == 1 else 'btn-outline-primary' }} fw-semibold">
-                                1º Semestre (Fev a Jun)
+                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                            <a href="/planejamento/{{ planejamento[0] }}?bimestre=1&aba=bimestral" class="btn {{ 'btn-primary text-white' if bimestre_selecionado == 1 else 'btn-outline-primary' }} fw-semibold">
+                                1º Bimestre (Fev a Abr)
                             </a>
-                            <a href="/planejamento/{{ planejamento[0] }}?semestre=2" class="btn {{ 'btn-primary text-white' if semestre_selecionado == 2 else 'btn-outline-primary' }} fw-semibold">
-                                2º Semestre (Ago a Dez)
+                            <a href="/planejamento/{{ planejamento[0] }}?bimestre=2&aba=bimestral" class="btn {{ 'btn-primary text-white' if bimestre_selecionado == 2 else 'btn-outline-primary' }} fw-semibold">
+                                2º Bimestre (Mai e Jun)
+                            </a>
+                            <a href="/planejamento/{{ planejamento[0] }}?bimestre=3&aba=bimestral" class="btn {{ 'btn-primary text-white' if bimestre_selecionado == 3 else 'btn-outline-primary' }} fw-semibold">
+                                3º Bimestre (Ago e Set)
+                            </a>
+                            <a href="/planejamento/{{ planejamento[0] }}?bimestre=4&aba=bimestral" class="btn {{ 'btn-primary text-white' if bimestre_selecionado == 4 else 'btn-outline-primary' }} fw-semibold">
+                                4º Bimestre (Out a Dez)
                             </a>
                         </div>
                     </div>
                 </div>
 
                 <div class="card-body p-4 p-md-5">
-                    {% if texto_semestral %}
-                        <div id="textoSemestral">
-                            {{ renderizar_texto(texto_semestral) }}
+                    {% if texto_bimestral %}
+                        <div id="textoBimestral">
+                            {{ renderizar_texto(texto_bimestral) }}
                         </div>
                     {% else %}
                         <div class="text-center p-5 bg-light rounded-4 border my-2">
                             <i class="bi bi-magic text-primary" style="font-size: 3rem;"></i>
-                            <h5 class="fw-bold mt-3 text-dark">Planejamento do {{ semestre_selecionado }}º Semestre ainda não gerado</h5>
-                            <p class="text-muted small mb-4">A IA pode desdobrar o Planejamento Anual nas unidades e habilidades específicas do {{ semestre_selecionado }}º Semestre com 1 clique.</p>
-                            <form method="POST" action="/planejamento/{{ planejamento[0] }}/gerar_semestral" onsubmit="iniciarOverlay('Gerando Planejamento Semestral...')">
-                                <input type="hidden" name="semestre" value="{{ semestre_selecionado }}">
+                            <h5 class="fw-bold mt-3 text-dark">Planejamento do {{ bimestre_selecionado }}º Bimestre ainda não gerado</h5>
+                            <p class="text-muted small mb-4">A IA pode desdobrar o Planejamento Anual nas unidades e habilidades específicas do {{ bimestre_selecionado }}º Bimestre com 1 clique.</p>
+                            <form method="POST" action="/planejamento/{{ planejamento[0] }}/gerar_bimestral" onsubmit="iniciarOverlay('Gerando Planejamento Bimestral...')">
+                                <input type="hidden" name="bimestre" value="{{ bimestre_selecionado }}">
                                 <button type="submit" class="btn btn-primary fw-bold shadow-sm px-4">
-                                    <i class="bi bi-stars me-1"></i> Gerar Planejamento do {{ semestre_selecionado }}º Semestre via IA
+                                    <i class="bi bi-stars me-1"></i> Gerar Planejamento do {{ bimestre_selecionado }}º Bimestre via IA
                                 </button>
                             </form>
                         </div>
@@ -288,7 +306,7 @@
         <!-- ========================================== -->
         <!-- ABA 3: PLANEJAMENTO MENSAL & PLANOS DE AULA -->
         <!-- ========================================== -->
-        <div class="tab-pane fade" id="content-mensal" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_ativa == 'mensal' else '' }}" id="content-mensal" role="tabpanel">
             <div class="row g-4">
                 <!-- Coluna Lateral: Lista de Meses Letivos -->
                 <div class="col-lg-4 col-xl-3">
@@ -299,30 +317,19 @@
                         <p class="text-muted small mb-3">Selecione o mês desejado para ver o planejamento e gerar seus planos de aula:</p>
 
                         <div class="list-group list-group-flush border rounded-3 overflow-hidden">
-                            <div class="list-group-item bg-light fw-bold small text-muted text-uppercase py-2">
-                                1º Semestre
-                            </div>
-                            {% for m in meses_semestre_1 %}
-                                <a href="/planejamento/{{ planejamento[0] }}?mes={{ m.numero }}&mes_nome={{ m.nome }}&semestre=1" 
-                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2.5 {{ 'active bg-success text-white' if mes_ativo == m.nome else '' }}">
-                                    <span><i class="bi bi-calendar-event me-2"></i>{{ m.nome }}</span>
-                                    <span class="badge {{ 'bg-white text-success' if mes_ativo == m.nome else 'bg-secondary' }} rounded-pill">
-                                        {{ contagem_planos_por_mes.get(m.nome, 0) }} aulas
-                                    </span>
-                                </a>
-                            {% endfor %}
-
-                            <div class="list-group-item bg-light fw-bold small text-muted text-uppercase py-2">
-                                2º Semestre
-                            </div>
-                            {% for m in meses_semestre_2 %}
-                                <a href="/planejamento/{{ planejamento[0] }}?mes={{ m.numero }}&mes_nome={{ m.nome }}&semestre=2" 
-                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2.5 {{ 'active bg-success text-white' if mes_ativo == m.nome else '' }}">
-                                    <span><i class="bi bi-calendar-event me-2"></i>{{ m.nome }}</span>
-                                    <span class="badge {{ 'bg-white text-success' if mes_ativo == m.nome else 'bg-secondary' }} rounded-pill">
-                                        {{ contagem_planos_por_mes.get(m.nome, 0) }} aulas
-                                    </span>
-                                </a>
+                            {% for bim_num, bim_meses in bimestres_meses.items() %}
+                                <div class="list-group-item bg-light fw-bold small text-muted text-uppercase py-2">
+                                    {{ bim_num }}º Bimestre
+                                </div>
+                                {% for m in bim_meses %}
+                                    <a href="/planejamento/{{ planejamento[0] }}?mes={{ m.numero }}&mes_nome={{ m.nome }}&bimestre={{ bim_num }}&aba=mensal" 
+                                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2.5 {{ 'active bg-success text-white' if mes_ativo == m.nome else '' }}">
+                                        <span><i class="bi bi-calendar-event me-2"></i>{{ m.nome }}</span>
+                                        <span class="badge {{ 'bg-white text-success' if mes_ativo == m.nome else 'bg-secondary' }} rounded-pill">
+                                            {{ contagem_planos_por_mes.get(m.nome, 0) }} aulas
+                                        </span>
+                                    </a>
+                                {% endfor %}
                             {% endfor %}
                         </div>
                     </div>
@@ -418,7 +425,7 @@
         <!-- ========================================== -->
 
         <!-- ABA PEI 1: PEI SEMESTRAL (DUA & METAS) -->
-        <div class="tab-pane fade show active" id="content-pei-semestral" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_pei_ativa == 'pei-semestral' else '' }}" id="content-pei-semestral" role="tabpanel">
             <div class="card-modern shadow-sm p-4 p-md-5 mb-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
                     <div>
@@ -468,7 +475,7 @@
         </div>
 
         <!-- ABA PEI 2: PLANEJAMENTO MENSAL PEI -->
-        <div class="tab-pane fade" id="content-pei-mensal" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_pei_ativa == 'pei-mensal' else '' }}" id="content-pei-mensal" role="tabpanel">
             <div class="row g-4">
                 <div class="col-lg-4 col-xl-3">
                     <div class="card-modern shadow-sm p-3 sticky-top" style="top: 20px;">
@@ -477,7 +484,7 @@
                         </h5>
                         <div class="list-group list-group-flush border rounded-3 overflow-hidden">
                             {% for m in meses_letivos_todos %}
-                                <a href="/planejamento/{{ planejamento[0] }}?mes={{ m.numero }}&mes_nome={{ m.nome }}" 
+                                <a href="/planejamento/{{ planejamento[0] }}?mes={{ m.numero }}&mes_nome={{ m.nome }}&aba=pei-mensal" 
                                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2.5 {{ 'active bg-warning text-dark fw-bold' if mes_ativo == m.nome else '' }}">
                                     <span><i class="bi bi-calendar-check me-2"></i>{{ m.nome }}</span>
                                     <span class="badge {{ 'bg-dark text-white' if mes_ativo == m.nome else 'bg-secondary' }} rounded-pill">
@@ -517,7 +524,7 @@
         </div>
 
         <!-- ABA PEI 3: PLANOS DE AULA INCLUSIVOS -->
-        <div class="tab-pane fade" id="content-pei-aulas" role="tabpanel">
+        <div class="tab-pane fade {{ 'show active' if tab_pei_ativa == 'pei-aulas' else '' }}" id="content-pei-aulas" role="tabpanel">
             <div class="card-modern shadow-sm p-4 p-md-5 mb-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
                     <div>
@@ -594,6 +601,7 @@
                 <input type="hidden" name="mes_nome" value="{{ mes_ativo }}">
                 <input type="hidden" name="mes_numero" value="{{ mes_numero_ativo }}">
                 <input type="hidden" name="semestre" value="{{ semestre_selecionado }}">
+                <input type="hidden" name="bimestre" value="{{ bimestre_selecionado }}">
 
                 <div class="modal-body p-4">
                     <p class="text-muted small mb-4">

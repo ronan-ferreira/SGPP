@@ -73,30 +73,30 @@ def construir_plano_estruturado_de_aula(aula, nome_curso, uc, horas_dia):
     }
     verbo_meta = verbos_por_bloom.get(nivel_bloom, "Compreender e aplicar os conceitos")
 
-    plano = f"""1. Identificacao:
+    plano = f"""1. IDENTIFICAÇÃO:
 - Curso: {nome_curso}
 - Unidade Curricular: {uc}
-- Aula / Encontro: Dia {dia} (Carga Horaria: {horas_dia}h)
-- Nivel Cognitivo (Taxonomia de Bloom): {nivel_bloom}
+- Aula / Encontro: Dia {dia} (Carga Horária: {horas_dia}h)
+- Nível Cognitivo (Taxonomia de Bloom): {nivel_bloom}
 
-2. Objetivos da Aula:
+2. CONHECIMENTOS TRABALHADOS NO DIA:
+{conteudo_prog_str}
+
+3. OBJETIVOS DA AULA:
 - Desenvolver a capacidade: {capacidade}
 - Meta de aprendizagem: {verbo_meta} previstos para esta aula.
 
-3. Conteudo Programatico:
-{conteudo_prog_str}
-
-4. Estrategia Didatica:
-- Abertura / Sensibilizacao: Acolhida da turma, contextualizacao do tema da aula e levantamento dos conhecimentos previos.
+4. ESTRATÉGIA DIDÁTICA:
+- Abertura / Sensibilização: Acolhida da turma, contextualização do tema da aula e levantamento dos conhecimentos prévios.
 - Desenvolvimento: {estrategia}.
-- Aplicacao / Pratica: Execucao orientada de atividades praticas e resolucao de situacoes-problema.
-- Fechamento / Sintese: Retomada dos pontos-chave, sintese dos aprendizados e esclarecimento de duvidas.
+- Aplicação / Prática: Execução orientada de atividades práticas e resolução de situações-problema.
+- Fechamento / Síntese: Retomada dos pontos-chave, síntese dos aprendizados e esclarecimento de dúvidas.
 
-5. Recursos Didaticos:
+5. RECURSOS DIDÁTICOS:
 - {recursos_str}
 
-6. Avaliacao da Aprendizagem:
-- Criterios: {criterios}
+6. AVALIAÇÃO DA APRENDIZAGEM:
+- Critérios: {criterios}
 - Instrumentos: {instrumentos}
 """
     return plano
@@ -120,14 +120,14 @@ def gerar_plano_aula(texto_base, carga_horaria, aulas_por_dia, dia):
 {preprocessar_texto(texto_base)[:2000]}
 
 Gere APENAS o plano de aula no formato estruturado:
-1. Identificacao:
-2. Objetivos da Aula:
-3. Conteudo Programatico:
-4. Estrategia Didatica:
-5. Recursos Didaticos:
-6. Avaliacao da Aprendizagem:
+1. IDENTIFICAÇÃO:
+2. CONHECIMENTOS TRABALHADOS NO DIA:
+3. OBJETIVOS DA AULA:
+4. ESTRATÉGIA DIDÁTICA:
+5. RECURSOS DIDÁTICOS:
+6. AVALIAÇÃO DA APRENDIZAGEM:
 
-Comece diretamente com "1. Identificacao:"."""
+Comece diretamente com "1. IDENTIFICAÇÃO:"."""
 
     try:
         plano = chamar_ia(
@@ -146,23 +146,23 @@ Comece diretamente com "1. Identificacao:"."""
         print(f"[AVISO] Erro na geracao via IA do DIA {dia}: {e}")
 
     # Fallback estruturado se IA demorar ou falhar
-    plano_fallback = f"""1. Identificacao:
+    plano_fallback = f"""1. IDENTIFICAÇÃO:
 - Aula: Encontro do Dia {dia} ({aulas_por_dia}h)
 
-2. Objetivos da Aula:
-- Aplicar os conceitos e procedimentos tecnicos correspondentes ao encontro.
-
-3. Conteudo Programatico:
+2. CONHECIMENTOS TRABALHADOS NO DIA:
 - {preprocessar_texto(texto_base)[:250]}
 
-4. Estrategia Didatica:
-- Abertura contextualizada, demonstracao pratica e fechamento reflexivo.
+3. OBJETIVOS DA AULA:
+- Aplicar os conceitos e procedimentos técnicos correspondentes ao encontro.
 
-5. Recursos Didaticos:
-- Computador, tela digital e recursos multimidia.
+4. ESTRATÉGIA DIDÁTICA:
+- Abertura contextualizada, demonstração prática e fechamento reflexivo.
 
-6. Avaliacao da Aprendizagem:
-- Acompanhamento formativo por checklist e participacao."""
+5. RECURSOS DIDÁTICOS:
+- Computador, tela digital e recursos multimídia.
+
+6. AVALIAÇÃO DA APRENDIZAGEM:
+- Acompanhamento formativo por checklist e participação."""
 
     with _cache_lock:
         _cache_planos[key] = plano_fallback

@@ -127,8 +127,8 @@ def gerar_docx_plano(
         linha_strip = linha.strip()
 
         # Identificar seções principais (numeradas ou por título)
-        if re.match(r'^\d+[\.\:\-–]\s*(Identificação|Objetivos|Conteudo|Conteúdo|Estrategia|Estratégia|Recursos|Avaliação|Avaliacao|Metodologia|Titulo|Título|Introdução|Introducao|Desenvolvimento|Conclusão|Conclusao)', linha_strip, re.IGNORECASE) or \
-           re.match(r'^(Identificação|Objetivos|Conteudo Programático|Conteúdo Programático|Estrategia Didática|Estratégia Didática|Recursos Didáticos|Recursos Didaticos|Avaliação|Avaliacao|Metodologia|Introdução|Introducao)', linha_strip, re.IGNORECASE) or \
+        if re.match(r'^\d+[\.\:\-–]\s*(Identifica[çc][ãa]o|Conhecimentos|Objetivos|Conteudo|Conteúdo|Estrategia|Estratégia|Recursos|Avaliação|Avaliacao|Metodologia|Titulo|Título|Introdução|Introducao|Desenvolvimento|Conclusão|Conclusao)', linha_strip, re.IGNORECASE) or \
+           re.match(r'^(Identifica[çc][ãa]o|Conhecimentos|Objetivos|Conteudo Programático|Conteúdo Programático|Estrategia Didática|Estratégia Didática|Recursos Didáticos|Recursos Didaticos|Avaliação|Avaliacao|Metodologia|Introdução|Introducao)', linha_strip, re.IGNORECASE) or \
            re.match(r'^DIA\s+\d+', linha_strip, re.IGNORECASE) or \
            re.match(r'^PLANO', linha_strip, re.IGNORECASE):
 

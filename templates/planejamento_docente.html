@@ -64,9 +64,9 @@
                                 Segmento / Nível <span class="text-danger">*</span>
                             </label>
                             <select name="modalidade" id="modalidade" class="form-select form-select-lg" onchange="atualizarTipoCurso()" required>
-                                <option value="ENSINO FUNDAMENTAL" {% if session.get('segmento') == 'fundamental' %}selected{% endif %}>Ensino Fundamental (BNCC — Anual/Semestral/Mensal)</option>
-                                <option value="ENSINO MÉDIO" {% if session.get('segmento') == 'medio' %}selected{% endif %}>Ensino Médio (BNCC — Anual/Semestral/Mensal)</option>
-                                <option value="EDUCAÇÃO INFANTIL" {% if session.get('segmento') == 'infantil' %}selected{% endif %}>Educação Infantil (Anual/Semestral/Mensal)</option>
+                                <option value="ENSINO FUNDAMENTAL" {% if session.get('segmento') == 'fundamental' %}selected{% endif %}>Ensino Fundamental (BNCC — Anual/Bimestral/Mensal)</option>
+                                <option value="ENSINO MÉDIO" {% if session.get('segmento') == 'medio' %}selected{% endif %}>Ensino Médio (BNCC — Anual/Bimestral/Mensal)</option>
+                                <option value="EDUCAÇÃO INFANTIL" {% if session.get('segmento') == 'infantil' %}selected{% endif %}>Educação Infantil (Anual/Bimestral/Mensal)</option>
                                 <option value="PEI - PLANO EDUCACIONAL INDIVIDUALIZADO" {% if session.get('segmento') == 'pei' %}selected{% endif %}>PEI — Plano Educacional Individualizado (Semestral/Mensal)</option>
                                 <option value="HABILITAÇÃO TÉCNICA" {% if session.get('segmento') == 'tecnico' or not session.get('segmento') %}selected{% endif %}>Curso Técnico / Profissionalizante</option>
                                 <option value="QUALIFICAÇÃO PROFISSIONAL">Qualificação Profissional</option>
@@ -188,7 +188,7 @@
 
                     <!-- Bloco 2: Modelo Educação Básica / Superior (Aulas por Ano/Semestre e Duração) -->
                     <div id="bloco_cronograma_escolar" class="row g-3 mb-3" style="display: none;">
-                        <div class="col-md-4">
+                        <div class="col-md-4" id="col_duracao_aula">
                             <label class="form-label fw-semibold">
                                 Duração da Aula <span class="text-danger">*</span>
                             </label>
@@ -200,7 +200,7 @@
                             <span class="text-muted small">Tempo de cada período de aula.</span>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-4" id="col_aulas_periodo">
                             <label class="form-label fw-semibold" id="label_aulas_periodo">
                                 Qtd. de Aulas no Ano <span class="text-danger">*</span>
                             </label>
@@ -212,7 +212,7 @@
                             <span class="text-muted small" id="dica_aulas_periodo">Total de aulas previstas no ano letivo.</span>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-4" id="col_aulas_por_dia">
                             <label class="form-label fw-semibold">
                                 Qtd. de Aulas por Dia <span class="text-danger">*</span>
                             </label>
@@ -691,6 +691,9 @@ function atualizarTipoCurso() {
     const inputHD = document.getElementById('horas_por_dia');
     const inputAulasBim = document.getElementById('aulas_bimestre');
     const inputAulasDia = document.getElementById('aulas_por_dia');
+    const colDuracaoAula = document.getElementById('col_duracao_aula');
+    const colAulasPeriodo = document.getElementById('col_aulas_periodo');
+    const colAulasPorDia = document.getElementById('col_aulas_por_dia');
     const inputNomeEstudante = document.getElementById('estudante_nome');
 
     // Controle de exibição dos blocos PEI e Alerta de Cascata
@@ -705,7 +708,10 @@ function atualizarTipoCurso() {
         if (inputCH) inputCH.required = true;
         if (inputHD) inputHD.required = true;
         if (inputAulasBim) inputAulasBim.required = false;
-        if (inputAulasDia) inputAulasDia.required = false;
+        if (inputAulasDia) {
+            inputAulasDia.required = false;
+            inputAulasDia.disabled = false;
+        }
 
         if (val.includes('TÉCNICO') || val.includes('TECNICO') || val.includes('HABILITA')) {
             if (badge) {
@@ -727,7 +733,15 @@ function atualizarTipoCurso() {
         if (inputCH) inputCH.required = false;
         if (inputHD) inputHD.required = false;
         if (inputAulasBim) inputAulasBim.required = true;
-        if (inputAulasDia) inputAulasDia.required = true;
+
+        const ocultarAulasPorDia = ehBasica && !ehPei;
+        if (colAulasPorDia) colAulasPorDia.style.display = ocultarAulasPorDia ? 'none' : 'block';
+        if (colDuracaoAula) colDuracaoAula.className = ocultarAulasPorDia ? 'col-md-6' : 'col-md-4';
+        if (colAulasPeriodo) colAulasPeriodo.className = ocultarAulasPorDia ? 'col-md-6' : 'col-md-4';
+        if (inputAulasDia) {
+            inputAulasDia.required = !ocultarAulasPorDia;
+            inputAulasDia.disabled = ocultarAulasPorDia;
+        }
 
         const ehSuperior = val.includes('SUPERIOR') || val.includes('GRADUAÇÃO') || val.includes('GRADUACAO') || val.includes('FACULDADE');
         const labelAulasPeriodo = document.getElementById('label_aulas_periodo');
@@ -767,16 +781,17 @@ function atualizarTipoCurso() {
                 badge.className = 'badge badge-subtle-primary me-1';
                 if (val.includes('INFANTIL')) {
                     badge.innerHTML = '<i class="bi bi-palette-fill me-1"></i> Educação Infantil (Cascata)';
-                    label.innerText = 'Planejamento Anual, Semestral, Mensal e Planos de Aula';
+                    label.innerText = 'Planejamento Anual, Bimestral, Mensal e Planos de Aula';
                 } else {
                     badge.innerHTML = '<i class="bi bi-journal-text me-1"></i> Educação Básica BNCC (Cascata)';
-                    label.innerText = 'Planejamento Anual -> Semestral -> Mensal -> Planos de Aula';
+                    label.innerText = 'Planejamento Anual -> Bimestral -> Mensal -> Planos de Aula';
                 }
             }
         }
     }
 
     atualizarBadgeModeloPadrao();
+    sincronizarFeriadosNacionaisCascata(ehBasica && !ehPei);
     atualizarResumoAulas();
 }
 
@@ -784,6 +799,83 @@ function atualizarTipoCurso() {
 // DIAS DA SEMANA E FERIADOS / RECESSOS
 // ==========================================
 let listaFeriados = [];
+let anoFeriadosNacionaisAtivo = null;
+
+function calcularPascoa(ano) {
+    // Algoritmo gregoriano (Meeus/Jones/Butcher)
+    const a = ano % 19;
+    const b = Math.floor(ano / 100);
+    const c = ano % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mes = Math.floor((h + l - 7 * m + 114) / 31);
+    const dia = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(ano, mes - 1, dia);
+}
+
+function formatarIsoLocal(dt) {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function somarDiasData(dt, dias) {
+    const res = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + dias);
+    return res;
+}
+
+function obterFeriadosNacionaisBrasil(ano) {
+    const pascoa = calcularPascoa(ano);
+    const feriados = [
+        { data: `${ano}-01-01`, nome: 'Confraternização Universal (Ano Novo)' },
+        { data: formatarIsoLocal(somarDiasData(pascoa, -48)), nome: 'Carnaval (Segunda-feira)' },
+        { data: formatarIsoLocal(somarDiasData(pascoa, -47)), nome: 'Carnaval (Terça-feira)' },
+        { data: formatarIsoLocal(somarDiasData(pascoa, -2)), nome: 'Sexta-feira Santa' },
+        { data: `${ano}-04-21`, nome: 'Tiradentes' },
+        { data: `${ano}-05-01`, nome: 'Dia do Trabalho' },
+        { data: formatarIsoLocal(somarDiasData(pascoa, 60)), nome: 'Corpus Christi' },
+        { data: `${ano}-09-07`, nome: 'Independência do Brasil' },
+        { data: `${ano}-10-12`, nome: 'Nossa Senhora Aparecida' },
+        { data: `${ano}-11-02`, nome: 'Finados' },
+        { data: `${ano}-11-15`, nome: 'Proclamação da República' },
+        { data: `${ano}-11-20`, nome: 'Consciência Negra' },
+        { data: `${ano}-12-25`, nome: 'Natal' }
+    ];
+    return feriados;
+}
+
+function sincronizarFeriadosNacionaisCascata(ehCascataAnual) {
+    if (!ehCascataAnual) {
+        if (anoFeriadosNacionaisAtivo !== null) {
+            listaFeriados = listaFeriados.filter(f => !f.autoNacional);
+            anoFeriadosNacionaisAtivo = null;
+            renderizarFeriados();
+        }
+        return;
+    }
+
+    const ano = getAnoReferencia(0);
+    if (anoFeriadosNacionaisAtivo === ano) return;
+
+    listaFeriados = listaFeriados.filter(f => !f.autoNacional);
+    const nacionais = obterFeriadosNacionaisBrasil(ano);
+    nacionais.forEach(item => {
+        if (!listaFeriados.some(f => f.data === item.data)) {
+            listaFeriados.push({ data: item.data, nome: item.nome, autoNacional: true });
+        }
+    });
+    listaFeriados.sort((a, b) => a.data.localeCompare(b.data));
+    anoFeriadosNacionaisAtivo = ano;
+    renderizarFeriados();
+}
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -1104,20 +1196,31 @@ function atualizarResumoAulas() {
         const aulasBimEl = document.getElementById('aulas_bimestre');
         const aulasDiaEl = document.getElementById('aulas_por_dia');
         const duracaoEl = document.getElementById('duracao_aula');
+        const selModalidade = document.getElementById('modalidade');
+        const valMod = selModalidade ? selModalidade.value.toUpperCase() : '';
+        const ehPei = valMod.includes('PEI') || valMod.includes('INDIVIDUALIZADO');
+        const ehBasica = (valMod.includes('FUNDAMENTAL') || valMod.includes('MÉDIO') || valMod.includes('MEDIO') || valMod.includes('INFANTIL')) && !ehPei;
 
         const aulasBim = aulasBimEl ? parseInt(aulasBimEl.value) : 0;
         const aulasDia = aulasDiaEl ? parseInt(aulasDiaEl.value) : 0;
         const duracao = duracaoEl ? parseInt(duracaoEl.value) : 50;
 
-        if (aulasBim && aulasDia && aulasDia > 0) {
+        if (ehBasica) {
+            if (aulasBim && aulasBim > 0) {
+                total = aulasBim;
+                const totalHorasEst = Math.round((aulasBim * duracao) / 60);
+                detalhesCalculo = `<strong>${aulasBim} aulas</strong> previstas no ano (com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h. A quantidade de aulas por dia será informada ao gerar as aulas por mês.`;
+            } else {
+                resumo.innerText = 'Informe o Total de Aulas no Ano para calcular o cronograma.';
+                return;
+            }
+        } else if (aulasBim && aulasDia && aulasDia > 0) {
             total = Math.ceil(aulasBim / aulasDia);
             const totalHorasEst = Math.round((aulasBim * duracao) / 60);
-            const selModalidade = document.getElementById('modalidade');
             const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
             const periodoNome = ehSuperior ? 'no semestre' : 'no ano';
             detalhesCalculo = `<strong>${total} encontros</strong> calculados (${aulasBim} aulas ${periodoNome} ÷ ${aulasDia} aula(s)/dia, com ${duracao} min cada). Carga horária estimada: ~${totalHorasEst}h.`;
         } else {
-            const selModalidade = document.getElementById('modalidade');
             const ehSuperior = selModalidade && (selModalidade.value.includes('SUPERIOR') || selModalidade.value.includes('GRADUAÇÃO') || selModalidade.value.includes('GRADUACAO'));
             const periodoNome = ehSuperior ? 'no Semestre' : 'no Ano';
             resumo.innerText = `Informe a Quantidade de Aulas ${periodoNome} e as Aulas por Dia para calcular o cronograma.`;
@@ -1196,6 +1299,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const dataFimEl = document.getElementById('data_fim');
     if (dataInicioEl && !dataInicioEl.value) {
         dataInicioEl.value = hoje;
+    }
+    if (dataInicioEl) {
+        dataInicioEl.addEventListener('change', () => {
+            const selMod = document.getElementById('modalidade');
+            const valMod = selMod ? selMod.value.toUpperCase() : '';
+            const ehPei = valMod.includes('PEI') || valMod.includes('INDIVIDUALIZADO');
+            const ehBasica = valMod.includes('FUNDAMENTAL') || valMod.includes('MÉDIO') || valMod.includes('MEDIO') || valMod.includes('INFANTIL');
+            sincronizarFeriadosNacionaisCascata(ehBasica && !ehPei);
+            atualizarResumoAulas();
+        });
     }
     if (dataFimEl) {
         dataFimEl.addEventListener('input', () => {
