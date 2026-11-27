@@ -163,7 +163,7 @@ h1, h2, h3, h4, h5, h6 {
     padding: 9px 0 11px;
     position: sticky;
     top: 0;
-    z-index: 1020;
+    z-index: 1030;
     backdrop-filter: blur(12px);
 }
 
@@ -2077,8 +2077,59 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================================
+   PLANEJAMENTO EM CASCATA — Sidebar Meses Letivos (Padrão SGPP)
+   ============================================================ */
+
+.cascata-sidebar-sticky {
+    position: sticky;
+    top: 84px;
+    z-index: 10;
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+@media (max-width: 991.98px) {
+    .cascata-sidebar-sticky {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+    }
+}
+
+.meses-letivos-list .list-group-item-action {
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.meses-letivos-list .list-group-item-action:hover:not(.active) {
+    background-color: var(--brand-navy-50);
+    color: var(--brand-navy-800);
+}
+
+.meses-letivos-list .list-group-item.active {
+    background: var(--grad-navy) !important;
+    border-color: var(--brand-navy-800) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.meses-letivos-list .list-group-item.active i {
+    color: var(--brand-orange-400) !important;
+}
+
+/* ============================================================
    VISUALIZAR PLANO DE AULA — Tipografia padronizada
    ============================================================ */
+
+.plano-preview {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    white-space: pre-line;
+}
 
 .plano-conteudo {
     font-family: var(--font-sans);

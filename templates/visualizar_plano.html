@@ -55,39 +55,42 @@
 
         <!-- Conteúdo formatado do Plano -->
         <div class="card-body p-4 p-md-5">
-            <div class="plano-conteudo" style="line-height: 1.8;">
+            <div class="plano-conteudo">
                 {% set linhas = plano[4].split('\n') %}
                 {% for linha in linhas %}
-                    {% if linha.startswith('1.') or linha.startswith('2.') or linha.startswith('3.') or
-                          linha.startswith('4.') or linha.startswith('5.') or linha.startswith('6.') or
-                          linha.startswith('7.') or linha.startswith('8.') or linha.startswith('9.') or
-                          linha.startswith('10.') or linha.startswith('1 –') or linha.startswith('2 –') or
-                          linha.startswith('3 –') or linha.startswith('4 –') or linha.startswith('5 –') or
-                          linha.startswith('6 –') or linha.startswith('1:') or linha.startswith('2:') or
-                          linha.startswith('3:') or linha.startswith('4:') or linha.startswith('5:') or
-                          linha.startswith('6:') or linha.startswith('Identificação') or
-                          linha.startswith('Objetivos') or linha.startswith('CONHECIMENTOS') or
-                          linha.startswith('Conhecimentos') or linha.startswith('Conteudo Programático') or
-                          linha.startswith('Conteúdo Programático') or linha.startswith('Estrategia') or
-                          linha.startswith('Estratégia') or linha.startswith('Recursos') or
-                          linha.startswith('Avaliação') or linha.startswith('Avaliacao') or
-                          linha.startswith('Metodologia') or linha.startswith('Titulo') or
-                          linha.startswith('Título') or linha.startswith('Introdução') or
-                          linha.startswith('Introducao') or linha.startswith('Desenvolvimento') or
-                          linha.startswith('Conclusão') or linha.startswith('Conclusao') or
-                          linha.startswith('DIA') or linha.startswith('PLANO') %}
-                        <h5 class="text-primary mt-4 mb-2 pb-2 border-bottom fw-bold d-flex align-items-center gap-2">
-                            <i class="bi bi-caret-right-fill fs-6 text-primary"></i> {{ linha }}
-                        </h5>
-                    {% elif linha.strip() == '' %}
+                    {% set bruto = linha.strip() %}
+                    {% set sem_md = bruto | replace('**','') | replace('__','') | replace('`','') %}
+                    {% set l = sem_md.lstrip('#').lstrip('>').lstrip('*').lstrip('-').lstrip('•').strip() | replace('*','') %}
+                    {% if bruto == '' %}
                         <div class="my-2"></div>
-                    {% elif linha.strip().startswith('-') or linha.strip().startswith('•') or linha.strip().startswith('*') %}
+                    {% elif bruto.startswith('#') or l.startswith('1.') or l.startswith('2.') or l.startswith('3.') or
+                          l.startswith('4.') or l.startswith('5.') or l.startswith('6.') or
+                          l.startswith('7.') or l.startswith('8.') or l.startswith('9.') or
+                          l.startswith('10.') or l.startswith('1 –') or l.startswith('2 –') or
+                          l.startswith('3 –') or l.startswith('4 –') or l.startswith('5 –') or
+                          l.startswith('6 –') or l.startswith('1:') or l.startswith('2:') or
+                          l.startswith('3:') or l.startswith('4:') or l.startswith('5:') or
+                          l.startswith('6:') or l.upper().startswith('IDENTIFICAÇÃO') or
+                          l.upper().startswith('OBJETIVOS') or l.upper().startswith('CONHECIMENTOS') or
+                          l.upper().startswith('CONTEUDO PROGRAMÁTICO') or
+                          l.upper().startswith('CONTEÚDO PROGRAMÁTICO') or l.upper().startswith('ESTRATEGIA') or
+                          l.upper().startswith('ESTRATÉGIA') or l.upper().startswith('RECURSOS') or
+                          l.upper().startswith('AVALIAÇÃO') or l.upper().startswith('AVALIACAO') or
+                          l.upper().startswith('METODOLOGIA') or l.upper().startswith('TITULO') or
+                          l.upper().startswith('TÍTULO') or l.upper().startswith('INTRODUÇÃO') or
+                          l.upper().startswith('INTRODUC') or l.upper().startswith('DESENVOLVIMENTO') or
+                          l.upper().startswith('CONCLUSÃO') or l.upper().startswith('CONCLUSAO') or
+                          l.upper().startswith('DIA ') or l.upper().startswith('PLANO ') %}
+                        <h5 class="text-primary mt-4 mb-2 pb-2 border-bottom fw-bold d-flex align-items-center gap-2">
+                            <i class="bi bi-caret-right-fill fs-6 text-primary"></i> {{ l }}
+                        </h5>
+                    {% elif bruto.startswith('-') or bruto.startswith('•') or bruto.startswith('*') %}
                         <p class="mb-2 ps-3 text-secondary d-flex align-items-start gap-2">
                             <i class="bi bi-dot fs-5 text-primary lh-1 mt-1"></i>
-                            <span>{{ linha.strip().lstrip('-•* ') }}</span>
+                            <span>{{ l }}</span>
                         </p>
                     {% else %}
-                        <p class="mb-2 text-dark">{{ linha }}</p>
+                        <p class="mb-2 text-dark">{{ sem_md.lstrip('#').lstrip('>').strip() | replace('*','') }}</p>
                     {% endif %}
                 {% endfor %}
             </div>
