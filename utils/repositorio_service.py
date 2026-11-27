@@ -368,13 +368,14 @@ def buscar_questoes_repositorio(curso=None, disciplina=None, conteudo=None,
             condicoes.append("tipo = %s")
             params.append(tipo_limpo)
 
-    # Monta cláusula de busca textual inteligente
-    text_clauses = []
+    # Filtro obrigatório de disciplina quando informada (evita misturar questões de outras matérias do mesmo curso)
     if disciplina and disciplina.strip():
-        text_clauses.append("disciplina ILIKE %s")
+        condicoes.append("disciplina ILIKE %s")
         params.append(f"%{disciplina.strip()}%")
 
-    if curso and curso.strip():
+    # Monta cláusula de busca contextual para curso e conteúdo
+    text_clauses = []
+    if curso and curso.strip() and not (disciplina and disciplina.strip()):
         text_clauses.append("curso ILIKE %s")
         params.append(f"%{curso.strip()}%")
 
@@ -415,12 +416,15 @@ def buscar_questoes_repositorio(curso=None, disciplina=None, conteudo=None,
         cursor.execute(query, tuple(all_params))
         rows = cursor.fetchall()
 
-        # Se a busca refinada não encontrou o suficiente e temos termos de curso/disciplina,
-        # busca questões adicionais da mesma disciplina ou curso
+        # Se a busca refinada não encontrou o suficiente e temos disciplina/curso,
+        # busca questões adicionais mantendo o isolamento de usuário e a disciplina
         if len(rows) < limite and (disciplina or curso):
             ids_existentes = [r[0] for r in rows]
             fallback_params = []
             fallback_conds = []
+            if usuario_id:
+                fallback_conds.append("usuario_id = %s")
+                fallback_params.append(int(usuario_id))
             if ids_existentes:
                 fallback_conds.append(f"id NOT IN ({','.join(str(i) for i in ids_existentes)})")
 
@@ -441,16 +445,24 @@ def buscar_questoes_repositorio(curso=None, disciplina=None, conteudo=None,
                     fallback_conds.append("tipo = %s")
                     fallback_params.append(tipo_limpo)
 
-            fallback_or = []
             if disciplina and disciplina.strip():
-                fallback_or.append("disciplina ILIKE %s")
+                fallback_conds.append("disciplina ILIKE %s")
                 fallback_params.append(f"%{disciplina.strip()}%")
-            if curso and curso.strip():
-                fallback_or.append("curso ILIKE %s")
+                fb_where = "WHERE " + " AND ".join(fallback_conds)
+                fb_query = f"""
+                    SELECT id, curso, disciplina, conteudo, dificuldade, tipo,
+                           enunciado, alternativas, resposta_correta, origem, usuario_id, data_criacao
+                    FROM repositorio_atividades
+                    {fb_where}
+                    ORDER BY id DESC
+                    LIMIT %s
+                """
+                fallback_params.append(limite - len(rows))
+                cursor.execute(fb_query, tuple(fallback_params))
+                rows.extend(cursor.fetchall())
+            elif curso and curso.strip():
+                fallback_conds.append("curso ILIKE %s")
                 fallback_params.append(f"%{curso.strip()}%")
-
-            if fallback_or:
-                fallback_conds.append("(" + " OR ".join(fallback_or) + ")")
                 fb_where = "WHERE " + " AND ".join(fallback_conds)
                 fb_query = f"""
                     SELECT id, curso, disciplina, conteudo, dificuldade, tipo,

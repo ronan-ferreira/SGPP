@@ -29,11 +29,44 @@ MESES_LETIVOS_SEMESTRE_2 = [
     {"numero": 12, "nome": "Dezembro", "semanas": 3, "dias_uteis_aprox": 14},
 ]
 
+MESES_LETIVOS_BIMESTRE_1 = [
+    {"numero": 2, "nome": "Fevereiro", "semanas": 3, "dias_uteis_aprox": 15},
+    {"numero": 3, "nome": "Março", "semanas": 4, "dias_uteis_aprox": 21},
+    {"numero": 4, "nome": "Abril", "semanas": 4, "dias_uteis_aprox": 20},
+]
+
+MESES_LETIVOS_BIMESTRE_2 = [
+    {"numero": 5, "nome": "Maio", "semanas": 4, "dias_uteis_aprox": 22},
+    {"numero": 6, "nome": "Junho", "semanas": 4, "dias_uteis_aprox": 20},
+]
+
+MESES_LETIVOS_BIMESTRE_3 = [
+    {"numero": 8, "nome": "Agosto", "semanas": 4, "dias_uteis_aprox": 22},
+    {"numero": 9, "nome": "Setembro", "semanas": 4, "dias_uteis_aprox": 21},
+]
+
+MESES_LETIVOS_BIMESTRE_4 = [
+    {"numero": 10, "nome": "Outubro", "semanas": 4, "dias_uteis_aprox": 21},
+    {"numero": 11, "nome": "Novembro", "semanas": 4, "dias_uteis_aprox": 20},
+    {"numero": 12, "nome": "Dezembro", "semanas": 3, "dias_uteis_aprox": 14},
+]
+
+MESES_LETIVOS_POR_BIMESTRE = {
+    1: MESES_LETIVOS_BIMESTRE_1,
+    2: MESES_LETIVOS_BIMESTRE_2,
+    3: MESES_LETIVOS_BIMESTRE_3,
+    4: MESES_LETIVOS_BIMESTRE_4,
+}
+
 TODOS_MESES_LETIVOS = MESES_LETIVOS_SEMESTRE_1 + MESES_LETIVOS_SEMESTRE_2
 
 
 def obter_meses_por_semestre(semestre: int):
     return MESES_LETIVOS_SEMESTRE_1 if semestre == 1 else MESES_LETIVOS_SEMESTRE_2
+
+
+def obter_meses_por_bimestre(bimestre: int):
+    return MESES_LETIVOS_POR_BIMESTRE.get(bimestre, MESES_LETIVOS_BIMESTRE_1)
 
 
 def eh_segmento_basica_ou_pei(segmento: str) -> bool:
@@ -72,27 +105,36 @@ def limpar_simbolos_ia(texto: str) -> str:
 # 1. GERAÇÃO DE PLANEJAMENTO ANUAL (EDUCAÇÃO BÁSICA)
 # ==============================================================================
 
-def gerar_planejamento_anual_ia(nome_curso: str, componente: str, segmento: str, ementa_digitada: str = "", ano_letivo: str = "2026"):
+def gerar_planejamento_anual_ia(nome_curso: str, componente: str, segmento: str, ementa_digitada: str = "", ano_letivo: str = "2026", docente_responsavel: str = ""):
     """
     Gera o Planejamento Anual completo para Educação Infantil, Fundamental ou Médio (BNCC).
     Retorna texto formatado e estrutura de dados para o desdobramento em semestres.
     """
+    linha_docente = f"\n- Docente Responsável: {docente_responsavel}" if docente_responsavel else ""
+    instrucao_docente = (
+        f'\nNa seção 1 (IDENTIFICAÇÃO E EMENTA ANUAL), informe exatamente "{docente_responsavel}" como Docente Responsável (não invente outro nome nem use placeholders).'
+        if docente_responsavel
+        else ""
+    )
+
     prompt = f"""Você é um especialista em Gestão Pedagógica e Currículo alinhado à BNCC (Base Nacional Comum Curricular).
 Gere um PLANEJAMENTO ANUAL completo e estruturado para:
 - Ano/Série/Turma: {nome_curso}
 - Componente Curricular: {componente}
 - Segmento de Ensino: {segmento}
-- Ano Letivo: {ano_letivo}
+- Ano Letivo: {ano_letivo}{linha_docente}
 - Tópicos/Ementa de Referência: {ementa_digitada or "Desenvolver os conteúdos e competências essenciais conforme a BNCC"}
 
 O Planejamento Anual DEVE conter rigorosamente as seguintes seções:
 1. IDENTIFICAÇÃO E EMENTA ANUAL
 2. COMPETÊNCIAS GERAIS E ESPECÍFICAS DA BNCC TRABALHADAS NO ANO
-3. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 1º SEMESTRE
-4. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 2º SEMESTRE
-5. METODOLOGIAS ATIVAS E RECURSOS DIDÁTICOS
-6. DIRETRIZES DE AVALIAÇÃO FORMATIVA E DIAGNÓSTICA
-
+3. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 1º BIMESTRE (Fevereiro a Abril)
+4. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 2º BIMESTRE (Maio e Junho)
+5. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 3º BIMESTRE (Agosto e Setembro)
+6. EIXOS TEMÁTICOS E OBJETOS DE CONHECIMENTO DO 4º BIMESTRE (Outubro a Dezembro)
+7. METODOLOGIAS ATIVAS E RECURSOS DIDÁTICOS
+8. DIRETRIZES DE AVALIAÇÃO FORMATIVA E DIAGNÓSTICA
+{instrucao_docente}
 Seja detalhado, didático, claro e perfeitamente aplicável ao contexto escolar brasileiro.
 NÃO utilize marcações Markdown como **, ##, ###, ---, * ou blocos de código; escreva em texto limpo e organizado."""
 
@@ -101,8 +143,9 @@ NÃO utilize marcações Markdown como **, ##, ###, ---, * ou blocos de código;
 
     # Se a IA não responder adequadamente, utiliza fallback estruturado
     if not texto_gerado or len(texto_gerado.strip()) < 100:
+        docente_txt = f"\nDocente Responsável: {docente_responsavel}" if docente_responsavel else ""
         texto_gerado = f"""PLANEJAMENTO ANUAL — {ano_letivo}
-Componente Curricular: {componente} | Série/Ano: {nome_curso} | Segmento: {segmento}
+Componente Curricular: {componente} | Série/Ano: {nome_curso} | Segmento: {segmento}{docente_txt}
 
 1. IDENTIFICAÇÃO E EMENTA ANUAL:
 Desenvolvimento integral das competências comunicativas, lógicas, socioemocionais e investigativas em {componente}, com base nas diretrizes da BNCC.
@@ -112,21 +155,23 @@ Desenvolvimento integral das competências comunicativas, lógicas, socioemocion
 - Utilização de linguagens diversas para expressar ideias e solucionar problemas cotidianos.
 - Trabalho colaborativo, pensamento ético e empatia na convivência escolar.
 
-3. ESTRUTURAÇÃO DO 1º SEMESTRE:
-- Unidade 1: Fundamentos conceituais, nivelamento e introdução aos temas centrais.
+3. ESTRUTURAÇÃO DO 1º BIMESTRE (Fevereiro a Abril):
+- Unidade 1: Fundamentos conceituais, nivelamento diagnóstico e introdução aos temas centrais.
+
+4. ESTRUTURAÇÃO DO 2º BIMESTRE (Maio e Junho):
 - Unidade 2: Aplicação prática, investigações dirigidas e consolidação das primeiras habilidades essenciais.
-- Meses contemplados: Fevereiro a Junho.
 
-4. ESTRUTURAÇÃO DO 2º SEMESTRE:
+5. ESTRUTURAÇÃO DO 3º BIMESTRE (Agosto e Setembro):
 - Unidade 3: Aprofundamento conceitual, projetos interdisciplinares e análise crítica.
-- Unidade 4: Síntese dos conhecimentos do ano, autoavaliação e projetos finais.
-- Meses contemplados: Agosto a Dezembro.
 
-5. METODOLOGIAS E RECURSOS:
+6. ESTRUTURAÇÃO DO 4º BIMESTRE (Outubro a Dezembro):
+- Unidade 4: Síntese dos conhecimentos do ano, autoavaliação e projetos finais.
+
+7. METODOLOGIAS E RECURSOS:
 - Metodologias ativas: aprendizagem baseada em problemas, pesquisas orientadas e dinâmicas colaborativas.
 - Recursos: livro didático, quadro branco, experimentos simples e projetor multimídia.
 
-6. AVALIAÇÃO FORMATIVA:
+8. AVALIAÇÃO FORMATIVA:
 - Diagnóstica contínua, participação, trabalhos individuais e em grupos, com foco no avanço do estudante."""
 
     dados_estruturados = {
@@ -135,9 +180,78 @@ Desenvolvimento integral das competências comunicativas, lógicas, socioemocion
         "componente": componente,
         "segmento": segmento,
         "ano_letivo": ano_letivo,
-        "semestres_previstos": [1, 2],
-        "resumo_semestre_1": f"Unidades introdutórias e de consolidação de {componente} (Fev a Jun)",
-        "resumo_semestre_2": f"Unidades de aprofundamento e projetos integradores de {componente} (Ago a Dez)"
+        "docente_responsavel": docente_responsavel,
+        "bimestres_previstos": [1, 2, 3, 4],
+        "resumo_bimestre_1": f"Fundamentos e nivelamento em {componente} (Fev a Abr)",
+        "resumo_bimestre_2": f"Consolidação e prática em {componente} (Mai e Jun)",
+        "resumo_bimestre_3": f"Aprofundamento e projetos em {componente} (Ago e Set)",
+        "resumo_bimestre_4": f"Síntese e avaliação final em {componente} (Out a Dez)",
+    }
+
+    return texto_gerado, dados_estruturados
+
+
+# ==============================================================================
+# 2. GERAÇÃO DE PLANEJAMENTO BIMESTRAL (DESDOBRAMENTO DO ANUAL EM 4 BIMESTRES)
+# ==============================================================================
+
+def gerar_planejamento_bimestral_ia(planejamento_anual_texto: str, componente: str, nome_curso: str, bimestre: int = 1):
+    """
+    Desdobra o Planejamento Anual no Planejamento do Bimestre selecionado (1º, 2º, 3º ou 4º Bimestre).
+    """
+    meses_info = obter_meses_por_bimestre(bimestre)
+    nomes_meses_str = ", ".join([m["nome"] for m in meses_info])
+
+    prompt = f"""Você é um coordenador pedagógico especialista em desdobramento curricular e BNCC.
+Com base no PLANEJAMENTO ANUAL abaixo, elabore o PLANEJAMENTO DO {bimestre}º BIMESTRE para:
+- Ano/Série: {nome_curso}
+- Componente Curricular: {componente}
+- Bimestre: {bimestre}º Bimestre
+- Meses Letivos abrangidos: {nomes_meses_str}
+
+PLANEJAMENTO ANUAL DE REFERÊNCIA:
+{planejamento_anual_texto[:3000]}
+
+O Planejamento do {bimestre}º Bimestre DEVE conter:
+1. OBJETIVO GERAL DO {bimestre}º BIMESTRE
+2. HABILIDADES ESPECÍFICAS DA BNCC TRABALHADAS NESTE BIMESTRE (com códigos de habilidades, ex: EF..., EM... ou objetivos da Educação Infantil)
+3. DISTRIBUIÇÃO DOS CONTEÚDOS POR MÊS LETIVO ({nomes_meses_str})
+4. ESTRATÉGIAS DIDÁTICAS E METODOLOGIAS ATIVAS DO BIMESTRE
+5. INSTRUMENTOS E CRITÉRIOS DE AVALIAÇÃO BIMESTRAL (Autoavaliação, rubricas e avaliações diagnósticas/formativas)
+
+NÃO utilize marcações Markdown como **, ##, ###, ---, * ou blocos de código; escreva em texto limpo."""
+
+    system_prompt = "Você é um gestor escolar especialista em BNCC e planejamento bimestral."
+    texto_gerado = limpar_simbolos_ia(chamar_ia(prompt, system_prompt=system_prompt, max_tokens=2200))
+
+    if not texto_gerado or len(texto_gerado.strip()) < 100:
+        texto_gerado = f"""PLANEJAMENTO BIMESTRAL — {bimestre}º BIMESTRE
+Componente Curricular: {componente} | Série: {nome_curso}
+Meses contemplados: {nomes_meses_str}
+
+1. OBJETIVO GERAL DO {bimestre}º BIMESTRE:
+Promover o domínio teórico e prático das habilidades essenciais de {componente} previstas para esta etapa do ano letivo.
+
+2. HABILIDADES DA BNCC NESTE BIMESTRE:
+- Habilidade 1: Identificar e articular conceitos-chave em situações concretas.
+- Habilidade 2: Interpretar textos, tabelas e problemas contextualizados.
+- Habilidade 3: Cooperar em produções individuais e coletivas com autonomia e pensamento crítico.
+
+3. DISTRIBUIÇÃO MENSAL:
+""" + "\n".join([f"- Mês de {m['nome']}: Metas e conteúdos específicos do período (aprox. {m['semanas']} semanas letivas)." for m in meses_info]) + f"""
+
+4. METODOLOGIAS:
+Aulas dialogadas, dinâmicas em grupo, estudos de caso simples e produções textuais/gráficas.
+
+5. AVALIAÇÃO:
+Contínua, formativa e cumulativa, valorizando o processo de aprendizagem e a resolução de desafios."""
+
+    dados_estruturados = {
+        "tipo": "bimestral",
+        "bimestre": bimestre,
+        "meses": [m["nome"] for m in meses_info],
+        "componente": componente,
+        "nome_curso": nome_curso
     }
 
     return texto_gerado, dados_estruturados
@@ -285,18 +399,38 @@ def calcular_aulas_do_mes(dias_semana: str, aulas_por_dia: int, semanas_mes: int
     return total_encontros, total_aulas
 
 
+def _extrair_encontros_json(texto: str, encontros_a_gerar: int):
+    """Extrai lista de encontros em JSON da resposta da IA, com fallback seguro."""
+    if not texto:
+        return []
+    limpo = texto.strip()
+    limpo = re.sub(r"^```(?:json)?\s*", "", limpo, flags=re.IGNORECASE)
+    limpo = re.sub(r"\s*```$", "", limpo)
+    inicio = limpo.find("[")
+    fim = limpo.rfind("]")
+    if inicio != -1 and fim != -1 and fim > inicio:
+        try:
+            dados = json.loads(limpo[inicio:fim + 1])
+            if isinstance(dados, list):
+                return [item for item in dados if isinstance(item, dict)][:encontros_a_gerar]
+        except Exception:
+            pass
+    return []
+
+
 def gerar_planos_aula_do_mes_ia(planejamento_mensal_texto: str, componente: str, nome_curso: str, mes_nome: str,
                                 dias_semana: str = "Segunda, Quarta", aulas_por_dia: int = 2, duracao_aula: int = 50,
                                 eh_pei: bool = False, dados_pei: dict = None):
     """
-    Gera a lista completa de Planos de Aula para cada encontro/aula do mês selecionado.
+    Gera a lista completa de Planos de Aula para cada encontro/aula do mês selecionado,
+    incluindo os conhecimentos específicos trabalhados em cada dia.
     """
     semanas = 4
     total_encontros, total_aulas = calcular_aulas_do_mes(dias_semana, aulas_por_dia, semanas_mes=semanas)
+    encontros_a_gerar = max(1, min(total_encontros, 12))
 
     planos_gerados = []
 
-    # Prompt para a IA gerar ou detalhar cada encontro
     contexto_inclusivo = ""
     if eh_pei:
         aluno = (dados_pei or {}).get("nome", "Estudante")
@@ -310,80 +444,137 @@ O plano de cada aula DEVE incorporar tecnologias assistivas mundiais:
 - Metodologia TEACCH: previsibilidade, passos visuais e controle de estímulos sensoriais.
 - Linguagem Clara (Plain Language) e avaliações processuais sem punição por tempo."""
 
-    prompt = f"""Você é um especialista em planejamento didático diário.
-Gere os tópicos e estrutura das aulas para o MÊS DE {mes_nome.upper()} ({total_encontros} encontros programados, {total_aulas} aulas no total de {duracao_aula}min).
+    prompt = f"""Você é um especialista em planejamento didático diário alinhado à BNCC.
+Gere o detalhamento de TODOS os {encontros_a_gerar} encontros do MÊS DE {mes_nome.upper()} ({total_aulas} aulas no total de {duracao_aula}min).
 Disciplina: {componente} | Série: {nome_curso}
 Dias de aula na semana: {dias_semana} | Aulas por dia: {aulas_por_dia}
 {contexto_inclusivo}
 
 PLANEJAMENTO MENSAL DE REFERÊNCIA:
-{planejamento_mensal_texto[:2000]}
+{planejamento_mensal_texto[:2500]}
 
-Gere um resumo estruturado para cada um dos {min(total_encontros, 8)} encontros principais com:
-- Encontro N: [Tema da Aula]
-- Objetivo: [Objetivo da aula]
-- Estratégia Didática: [Acolhida, Desenvolvimento e Fechamento]
-- Recursos: [Materiais e recursos]{" - Tecnologia Assistiva e Adaptação: [Recursos DUA/CAA]" if eh_pei else ""}"""
+Responda EXCLUSIVAMENTE com um array JSON válido contendo exatamente {encontros_a_gerar} objetos (um para cada encontro, de 1 a {encontros_a_gerar}), cada um com as chaves:
+- "dia": número do encontro (1 a {encontros_a_gerar})
+- "tema": título curto e específico do tema da aula do dia
+- "conhecimentos": lista de 2 a 4 objetos de conhecimento / conteúdos específicos que serão trabalhados neste dia (derivados do planejamento mensal acima)
+- "objetivos": lista de 2 objetivos específicos da aula do dia
+- "estrategia": texto descrevendo Abertura, Desenvolvimento e Fechamento específicos para o conhecimento do dia
+- "recursos": texto com os recursos didáticos{" e tecnologias assistivas DUA/CAA/TEACCH" if eh_pei else ""}
+- "avaliacao": texto com a avaliação formativa do dia
 
-    system_prompt = "Você é um professor experiente gerador de planos de aula estruturados e inclusivos."
-    texto_resumo = chamar_ia(prompt, system_prompt=system_prompt, max_tokens=2500)
+NÃO escreva nada fora do array JSON."""
+
+    system_prompt = "Você é um professor experiente gerador de planos de aula estruturados. Responda apenas JSON válido."
+    resposta_ia = chamar_ia(prompt, system_prompt=system_prompt, max_tokens=3200)
+    encontros_ia = _extrair_encontros_json(resposta_ia, encontros_a_gerar)
 
     # Constrói os planos individuais para cada encontro
-    encontros_a_gerar = max(1, min(total_encontros, 12))
     for dia in range(1, encontros_a_gerar + 1):
         semana_num = ((dia - 1) // max(1, len(dias_semana.split(",")))) + 1
-        
+        item_ia = encontros_ia[dia - 1] if dia - 1 < len(encontros_ia) else {}
+
+        tema_dia = str(item_ia.get("tema") or "").strip()
+        if not tema_dia:
+            tema_dia = f"{componente} — Semana {semana_num} (Encontro {dia})"
+
+        conhecimentos_raw = item_ia.get("conhecimentos")
+        if isinstance(conhecimentos_raw, list) and conhecimentos_raw:
+            conhecimentos_linhas = "\n".join(f"- {str(c).strip()}" for c in conhecimentos_raw if str(c).strip())
+        elif isinstance(conhecimentos_raw, str) and conhecimentos_raw.strip():
+            conhecimentos_linhas = f"- {conhecimentos_raw.strip()}"
+        else:
+            conhecimentos_linhas = f"- Conteúdos e objetos de conhecimento de {componente} previstos para a Semana {semana_num} de {mes_nome}."
+
+        objetivos_raw = item_ia.get("objetivos")
+        if isinstance(objetivos_raw, list) and objetivos_raw:
+            objetivos_linhas = "\n".join(f"- {str(o).strip()}" for o in objetivos_raw if str(o).strip())
+        elif isinstance(objetivos_raw, str) and objetivos_raw.strip():
+            objetivos_linhas = f"- {objetivos_raw.strip()}"
+        else:
+            objetivos_linhas = (
+                f"- Desenvolver e aplicar os conceitos fundamentais de {componente} programados para a Semana {semana_num}.\n"
+                f"- Estimular o raciocínio crítico, a interação dialógica e a resolução colaborativa de problemas."
+            )
+
+        estrategia_txt = str(item_ia.get("estrategia") or "").strip()
+        recursos_txt = str(item_ia.get("recursos") or "").strip()
+        avaliacao_txt = str(item_ia.get("avaliacao") or "").strip()
+
         if eh_pei:
+            if not estrategia_txt:
+                estrategia_txt = (
+                    "- Acolhida e Rotina Visual: Apresentação da sequência da aula em prancha de rotina (Passo 1 -> Passo 2 -> Passo 3).\n"
+                    "- Desenvolvimento com Apoio Multissensorial: Explicação com material concreto, estímulo visual (cartões com figuras/pictogramas) e comandos curtos e diretos.\n"
+                    "- Ação e Expressão: Permitir resposta oral, por apontamento em prancha CAA ou com uso de recursos digitais.\n"
+                    "- Encerramento Positivo: Reforço positivo imediato e registro do progresso na ficha de acompanhamento."
+                )
+            if not recursos_txt:
+                recursos_txt = "- Prancha de Comunicação Alternativa (CAA/ARASAAC), recursos manipuláveis, teclado acessível ou leitor digital conforme necessidade."
+            if not avaliacao_txt:
+                avaliacao_txt = "- Verificação do engajamento e alcance das metas individuais sem sobrecarga sensorial ou pressão de tempo."
+
             plano_conteudo = f"""PLANO DE AULA PEI — MÊS DE {mes_nome.upper()} (ENCONTRO {dia})
 1. IDENTIFICAÇÃO:
 - Estudante: {(dados_pei or {}).get('nome', 'Estudante')}
 - Componente Curricular: {componente} | Ano/Série: {nome_curso}
+- Tema do Dia: {tema_dia}
 - Encontro: Dia {dia} do mês de {mes_nome} (Semana {semana_num})
 - Carga: {aulas_por_dia} aulas de {duracao_aula} min ({aulas_por_dia * duracao_aula} min)
 
-2. OBJETIVOS ESPECÍFICOS INDIVIDUALIZADOS (PEI):
-- Desenvolver habilidades prioritárias de {componente} com apoio e mediação pedagógica.
-- Estimular a comunicação, atenção compartilhada e autonomia na execução da tarefa.
+2. CONHECIMENTOS TRABALHADOS NO DIA (ADAPTADOS):
+{conhecimentos_linhas}
 
-3. ESTRATÉGIAS DIDÁTICAS INCLUSIVAS (DUA & TEACCH):
-- Acolhida e Rotina Visual: Apresentação da sequência da aula em prancha de rotina (Passo 1 -> Passo 2 -> Passo 3).
-- Desenvolvimento com Apoio Multissensorial: Explicação com material concreto, estímulo visual (cartões com figuras/pictogramas) e comandos curtos e diretos.
-- Ação e Expressão: Permitir resposta oral, por apontamento em prancha CAA ou com uso de recursos digitais.
-- Encerramento Positivo: Reforço positivo imediato e registro do progresso na ficha de acompanhamento.
+3. OBJETIVOS ESPECÍFICOS INDIVIDUALIZADOS (PEI):
+{objetivos_linhas}
 
-4. TECNOLOGIAS ASSISTIVAS E RECURSOS:
-- Prancha de Comunicação Alternativa (CAA/ARASAAC), recursos manipuláveis, teclado acessível ou leitor digital conforme necessidade.
+4. ESTRATÉGIAS DIDÁTICAS INCLUSIVAS (DUA & TEACCH):
+{limpar_simbolos_ia(estrategia_txt)}
 
-5. AVALIAÇÃO PROCESSUAL FORMATIVA:
-- Verificação do engajamento e alcance das metas individuais sem sobrecarga sensorial ou pressão de tempo."""
+5. TECNOLOGIAS ASSISTIVAS E RECURSOS:
+{limpar_simbolos_ia(recursos_txt)}
+
+6. AVALIAÇÃO PROCESSUAL FORMATIVA:
+{limpar_simbolos_ia(avaliacao_txt)}"""
         else:
+            if not estrategia_txt:
+                estrategia_txt = (
+                    "- Abertura (10 min): Acolhimento, contextualização do tema e levantamento de conhecimentos prévios.\n"
+                    "- Desenvolvimento (30 min): Exposição dialogada, análise de exemplos práticos e realização de atividade orientada.\n"
+                    "- Fechamento (10 min): Síntese das aprendizagens do encontro e esclarecimento de dúvidas."
+                )
+            if not recursos_txt:
+                recursos_txt = "- Livro didático, quadro branco, material impresso e projetor multimídia."
+            if not avaliacao_txt:
+                avaliacao_txt = "- Observação ativa do engajamento, participação nas discussões e resolução dos exercícios propostos."
+
             plano_conteudo = f"""PLANO DE AULA — MÊS DE {mes_nome.upper()} (ENCONTRO {dia})
 1. IDENTIFICAÇÃO:
 - Componente Curricular: {componente} | Ano/Série: {nome_curso}
+- Tema do Dia: {tema_dia}
 - Encontro: Dia {dia} de {mes_nome} (Semana {semana_num})
 - Carga: {aulas_por_dia} aula(s) de {duracao_aula} min ({aulas_por_dia * duracao_aula} min)
 - Dias de aula na semana: {dias_semana}
 
-2. OBJETIVOS DA AULA (BNCC):
-- Desenvolver e aplicar os conceitos fundamentais de {componente} programados para a Semana {semana_num}.
-- Estimular o raciocínio crítico, a interação dialógica e a resolução colaborativa de problemas.
+2. CONHECIMENTOS TRABALHADOS NO DIA:
+{conhecimentos_linhas}
 
-3. ESTRATÉGIA DIDÁTICA:
-- Abertura (10 min): Acolhimento, contextualização do tema e levantamento de conhecimentos prévios.
-- Desenvolvimento (30 min): Exposição dialogada, análise de exemplos práticos e realização de atividade orientada.
-- Fechamento (10 min): Síntese das aprendizagens do encontro e esclarecimento de dúvidas.
+3. OBJETIVOS DA AULA (BNCC):
+{objetivos_linhas}
 
-4. RECURSOS DIDÁTICOS:
-- Livro didático, quadro branco, material impresso e projetor multimídia.
+4. ESTRATÉGIA DIDÁTICA:
+{limpar_simbolos_ia(estrategia_txt)}
 
-5. AVALIAÇÃO DA APRENDIZAGEM:
-- Observação ativa do engajamento, participação nas discussões e resolução dos exercícios propostos."""
+5. RECURSOS DIDÁTICOS:
+{limpar_simbolos_ia(recursos_txt)}
+
+6. AVALIAÇÃO DA APRENDIZAGEM:
+{limpar_simbolos_ia(avaliacao_txt)}"""
 
         planos_gerados.append({
             "dia": dia,
             "semana": semana_num,
             "mes": mes_nome,
-            "tema": f"Aula {dia} ({mes_nome}) — {componente}",
+            "tema": f"Aula {dia} ({mes_nome}) — {tema_dia}",
             "conteudo": plano_conteudo
         })
 

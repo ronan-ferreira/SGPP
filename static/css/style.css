@@ -156,7 +156,7 @@ h1, h2, h3, h4, h5, h6 {
    BARRA DE NAVEGAÇÃO MODERNA (AZUL MARINHO + FILETE LARANJA)
    ============================================================ */
 
-.navbar-senai {
+.navbar-sgpp {
     background: linear-gradient(95deg, #061838 0%, #092554 55%, #003078 100%) !important;
     border-bottom: none;
     box-shadow: 0 6px 24px rgba(6, 24, 56, 0.18);
@@ -167,7 +167,7 @@ h1, h2, h3, h4, h5, h6 {
     backdrop-filter: blur(12px);
 }
 
-.navbar-senai::after {
+.navbar-sgpp::after {
     content: '';
     position: absolute;
     left: 0;
@@ -178,7 +178,7 @@ h1, h2, h3, h4, h5, h6 {
     pointer-events: none;
 }
 
-.navbar-brand-senai {
+.navbar-brand-sgpp {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -191,12 +191,12 @@ h1, h2, h3, h4, h5, h6 {
     white-space: nowrap;
 }
 
-.navbar-brand-senai img {
+.navbar-brand-sgpp img {
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.28));
     transition: transform 0.2s ease;
 }
 
-.navbar-brand-senai:hover img {
+.navbar-brand-sgpp:hover img {
     transform: scale(1.05);
 }
 
@@ -1988,7 +1988,7 @@ h1, h2, h3, h4, h5, h6 {
         padding: 36px 28px;
     }
 
-    .navbar-senai {
+    .navbar-sgpp {
         padding: 10px 0 12px;
     }
 
@@ -2074,4 +2074,35 @@ h1, h2, h3, h4, h5, h6 {
     .landing-step-card {
         padding: 20px 18px;
     }
+}
+
+/* ============================================================
+   VISUALIZAR PLANO DE AULA — Tipografia padronizada
+   ============================================================ */
+
+.plano-conteudo {
+    font-family: var(--font-sans);
+    font-size: 0.97rem;
+    color: var(--text-primary);
+    line-height: 1.8;
+}
+
+.plano-conteudo h5 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--brand-navy-800);
+    letter-spacing: -0.015em;
+}
+
+.plano-conteudo p {
+    font-family: var(--font-sans);
+    font-size: 0.97rem;
+    color: var(--text-primary);
+}
+
+.plano-conteudo .text-secondary,
+.plano-conteudo span {
+    font-family: var(--font-sans);
+    font-size: 0.97rem;
 }

@@ -72,7 +72,7 @@ def gerar_docx_plano(
     conteudo,
     caminho_saida,
     logo_path=None,
-    instituicao=None
+    instituicao=None,
 ):
     doc = Document()
 
@@ -83,12 +83,11 @@ def gerar_docx_plano(
     secao.left_margin = Cm(3)
     secao.right_margin = Cm(2)
 
-    # Cabeçalho com logo somente quando enviada pelo professor no perfil
+    # Cabeçalho com logo (somente quando enviada pelo professor no perfil) e instituição
+    cabecalho = doc.sections[0].header
+    cabecalho.is_linked_to_previous = False
     if logo_path and os.path.exists(logo_path):
         try:
-            cabecalho = doc.sections[0].header
-            cabecalho.is_linked_to_previous = False
-
             paragrafo_logo = cabecalho.paragraphs[0] if cabecalho.paragraphs else cabecalho.add_paragraph()
             paragrafo_logo.alignment = WD_ALIGN_PARAGRAPH.LEFT
             run_logo = paragrafo_logo.add_run()
@@ -98,14 +97,23 @@ def gerar_docx_plano(
         except Exception as e:
             print(f"Erro ao adicionar logo no cabeçalho: {e}")
 
-    if instituicao:
-        p_inst = doc.add_paragraph()
+    instituicao_limpa = (instituicao or "").strip()
+    if instituicao_limpa:
+        p_inst = cabecalho.add_paragraph()
         p_inst.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        run_inst = p_inst.add_run(str(instituicao).strip().upper())
+        run_inst = p_inst.add_run(instituicao_limpa.upper())
         run_inst.bold = True
-        run_inst.font.size = Pt(10)
+        run_inst.font.size = Pt(9)
         run_inst.font.color.rgb = RGBColor(71, 85, 105)
-        p_inst.space_after = Pt(2)
+
+    # Rodapé institucional dinâmico
+    rodape = secao.footer
+    rodape.is_linked_to_previous = False
+    p_rodape = rodape.paragraphs[0] if rodape.paragraphs else rodape.add_paragraph()
+    p_rodape.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_rodape = p_rodape.add_run(instituicao_limpa or "SGPP — Sistema de Gestão e Planejamento Pedagógico")
+    run_rodape.font.size = Pt(8)
+    run_rodape.font.color.rgb = RGBColor(100, 116, 139)
 
     # Título = nome do curso (subtitulo), alinhado à esquerda
     if subtitulo:
@@ -118,15 +126,15 @@ def gerar_docx_plano(
         p_titulo.space_after = Pt(10)
 
     # Processar conteúdo - igual ao template HTML
-    linhas = conteudo.split("\n")
+    linhas = (conteudo or "").split("\n")
     for linha in linhas:
         linha_strip = linha.strip()
 
         # Identificar seções principais (numeradas ou por título)
-        if re.match(r'^\d+[\.\:\-–]\s*(Identificação|Objetivos|Conteudo|Conteúdo|Estrategia|Estratégia|Recursos|Avaliação|Avaliacao|Metodologia|Titulo|Título|Introdução|Introducao|Desenvolvimento|Conclusão|Conclusao)', linha_strip, re.IGNORECASE) or \
-           re.match(r'^(Identificação|Objetivos|Conteudo Programático|Conteúdo Programático|Estrategia Didática|Estratégia Didática|Recursos Didáticos|Recursos Didaticos|Avaliação|Avaliacao|Metodologia|Introdução|Introducao)', linha_strip, re.IGNORECASE) or \
-           re.match(r'^DIA\s+\d+', linha_strip, re.IGNORECASE) or \
-           re.match(r'^PLANO', linha_strip, re.IGNORECASE):
+        if re.match(r'^\d+[\.\:\-–]\s*(Identifica[çc][ãa]o|Conhecimentos|Objetivos|Conteudo|Conteúdo|Estrategia|Estratégia|Recursos|Avaliação|Avaliacao|Metodologia|Titulo|Título|Introdução|Introducao|Desenvolvimento|Conclusão|Conclusao|[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,})', linha_strip, re.IGNORECASE) or \
+           re.match(r'^(Identifica[çc][ãa]o|Conhecimentos|Objetivos|Conteudo Programático|Conteúdo Programático|Estrategia Didática|Estratégia Didática|Recursos Didáticos|Recursos Didaticos|Avaliação|Avaliacao|Metodologia|Introdução|Introducao|Compet[êe]ncias|Eixos Tem[áa]ticos|Diretrizes|Habilidades|Distribui[çc][ãa]o|Estrat[ée]gias|Instrumentos|Crit[ée]rios|Perfil|Metas|Desenho Universal|Tecnologias Assistivas|Adapta[çc][õo]es|Cronograma)', linha_strip, re.IGNORECASE) or \
+           re.match(r'^(DIA|ENCONTRO)\s+\d+', linha_strip, re.IGNORECASE) or \
+           re.match(r'^(PLANO|PLANEJAMENTO)\b', linha_strip, re.IGNORECASE):
 
             # Seção principal - heading
             p = doc.add_paragraph()

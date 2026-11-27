@@ -35,8 +35,12 @@ def extrair_topicos_relevantes(texto_base):
 
     topicos = []
 
-    # 1. Se for um plano estruturado com seção "Conteúdo Programático"
+    # 1. Se for um plano estruturado com "CONHECIMENTOS TRABALHADOS NO DIA" ou "Conteúdo Programático"
     match_cp = re.search(
+        r'CONHECIMENTOS\s+TRABALHADOS\s+NO\s+DIA[^:\n]*:?(.*?)(?=(?:\d+\.\s*)?(?:Objetivos|Estrat[eé]gia)|\Z)',
+        texto_base,
+        re.DOTALL | re.IGNORECASE
+    ) or re.search(
         r'Conte[uú]do\s+Program[aá]tico:?(.*?)(?=(?:\d+\.\s*)?Estrat[eé]gia|\Z)',
         texto_base,
         re.DOTALL | re.IGNORECASE
@@ -48,10 +52,10 @@ def extrair_topicos_relevantes(texto_base):
             if len(limpa) >= 3:
                 topicos.append(limpa)
 
-    # 2. Se não encontrou em Conteúdo Programático, tenta extrair de Objetivos / Capacidades
+    # 2. Se não encontrou em Conhecimentos / Conteúdo Programático, tenta extrair de Objetivos / Capacidades
     if not topicos:
         match_obj = re.search(
-            r'Objetivos da Aula:?(.*?)(?=(?:\d+\.\s*)?Conte[uú]do|\Z)',
+            r'Objetivos(?:\s+da\s+Aula)?(?:\s*\(BNCC\))?:?(.*?)(?=(?:\d+\.\s*)?(?:Conte[uú]do|Estrat[eé]gia)|\Z)',
             texto_base,
             re.DOTALL | re.IGNORECASE
         )
@@ -104,8 +108,12 @@ def extrair_conteudo_pedagogico(texto):
     if not texto:
         return ""
 
-    if "Conteudo Programatico" in texto or "Conteúdo Programático" in texto:
+    if "Conteudo Programatico" in texto or "Conteúdo Programático" in texto or "CONHECIMENTOS TRABALHADOS NO DIA" in texto:
         partes = []
+
+        m_tema = re.search(r'Tema do Dia:\s*([^\n\r]+)', texto, re.IGNORECASE)
+        if m_tema:
+            partes.append(f"TEMA DA AULA: {m_tema.group(1).strip()}")
 
         m_bloom = re.search(
             r'N[ií]vel Cognitivo(?:\s*\(Taxonomia de Bloom\))?\s*:\s*([^\n\r]+)',
@@ -115,8 +123,18 @@ def extrair_conteudo_pedagogico(texto):
         if m_bloom:
             partes.append(f"NÍVEL COGNITIVO ESPERADO (BLOOM): {m_bloom.group(1).strip()}")
 
+        m_conh = re.search(
+            r'CONHECIMENTOS TRABALHADOS NO DIA[^:\n]*:?(.*?)(?=(?:\d+\.\s*)?(?:OBJETIVOS|ESTRAT[EÉ]GIA)|\Z)',
+            texto,
+            re.DOTALL | re.IGNORECASE
+        )
+        if m_conh:
+            conh_texto = m_conh.group(1).strip()
+            if conh_texto:
+                partes.append(f"CONHECIMENTOS TRABALHADOS NO DIA:\n{conh_texto}")
+
         m_obj = re.search(
-            r'Objetivos da Aula:?(.*?)(?=(?:\d+\.\s*)?Conte[uú]do|\Z)',
+            r'Objetivos(?:\s+da\s+Aula)?(?:\s*\(BNCC\))?:?(.*?)(?=(?:\d+\.\s*)?(?:Conte[uú]do|Estrat[eé]gia)|\Z)',
             texto,
             re.DOTALL | re.IGNORECASE
         )
@@ -286,7 +304,7 @@ def gerar_atividade_fallback(texto_base, dificuldade, tipo, quantidade, segmento
     return "\n\n".join(questoes)
 
 
-def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segmento=""):
+def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segmento="", disciplina="", curso=""):
     quantidade = int(quantidade)
     quantidade = max(1, min(quantidade, 30))
 
@@ -295,9 +313,11 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segme
     modelo_ativo = cfg_geral["gemini"]["model"] if provider_ativo == "gemini" else cfg_geral["ollama"]["model"]
 
     seg_str = str(segmento or "").lower()
-    print(f"[ATIVIDADE] Provedor={provider_ativo} | Modelo={modelo_ativo} | Segmento={seg_str or 'Geral'} | Tipo={tipo} | Dificuldade={dificuldade} | Qtd={quantidade}")
+    disc_str = str(disciplina or "").strip()
+    curso_str = str(curso or "").strip()
+    print(f"[ATIVIDADE] Provedor={provider_ativo} | Modelo={modelo_ativo} | Segmento={seg_str or 'Geral'} | Disciplina={disc_str or '-'} | Tipo={tipo} | Dificuldade={dificuldade} | Qtd={quantidade}")
 
-    key = gerar_hash(f"{texto_pdf}-{seg_str}", dificuldade, tipo, quantidade)
+    key = gerar_hash(f"{texto_pdf}-{seg_str}-{disc_str}-{curso_str}", dificuldade, tipo, quantidade)
 
     # 1. Consulta ao Cache Thread-safe
     with _cache_lock:
@@ -452,12 +472,24 @@ def gerar_atividade(texto_pdf, dificuldade, tipo="objetiva", quantidade=5, segme
         system_prompt = "Você é um especialista mundial em Educação Especial Inclusiva, DUA (Universal Design for Learning) e Tecnologias Assistivas. Crie atividades pedagógicas adaptadas que eliminem barreiras de aprendizagem, com linguagem simples e clara, apoio visual e avaliação formativa positiva."
     else:
         system_prompt = "Você é um professor especialista e coordenador pedagógico responsável por criar atividades avaliativas rigorosas e de alta qualidade técnica de acordo com as diretrizes educacionais."
-    prompt = f"""Crie a lista de questões avaliativas abaixo baseando-se estritamente nestes conteúdos técnicos e objetivos pedagógicos:
----
+    contexto_cabecalho = ""
+    if disc_str:
+        contexto_cabecalho += f"Disciplina / Componente Curricular: {disc_str}\n"
+    if curso_str:
+        contexto_cabecalho += f"Curso / Série / Ano: {curso_str}\n"
+
+    regra_disciplina = (
+        f'TODAS as questões devem ser EXCLUSIVAMENTE sobre a disciplina "{disc_str}" e o conteúdo informado abaixo. NUNCA gere questões de outra disciplina ou tema.\n'
+        if disc_str
+        else ""
+    )
+
+    prompt = f"""Crie a lista de questões avaliativas abaixo baseando-se estritamente na disciplina e nos conteúdos informados:
+{contexto_cabecalho}---
 {conteudo_pedagogico}
 ---
 
-{instrucao_tipo}
+{regra_disciplina}{instrucao_tipo}
 
 REGRAS OBRIGATÓRIAS (PADRÃO SAEP):
 1. Comece DIRETAMENTE com "Questão 1:" sem introdução, cumprimentos ou saudações.

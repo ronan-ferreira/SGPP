@@ -1,6 +1,6 @@
 """
 ========================================================
-  SERVIDOR DE PRODUÇÃO — Gerador de Atividades SENAI
+  SERVIDOR DE PRODUÇÃO — SGPP (Gestão Pedagógica)
   Powered by Waitress (WSGI para Windows)
 ========================================================
 
@@ -102,7 +102,7 @@ GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("  GERADOR DE ATIVIDADES SENAI — Servidor Waitress")
+    print("  SGPP — Sistema de Gestão e Planejamento Pedagógico")
     print("=" * 60)
     
     if PROVIDER in ("auto", "ollama"):

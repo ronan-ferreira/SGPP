@@ -65,13 +65,16 @@ from utils.imagem_utils import otimizar_imagem_upload, processar_logo_canvas_exc
 from ia.planejamento_cascata import (
     gerar_planejamento_anual_ia,
     gerar_planejamento_semestral_ia,
+    gerar_planejamento_bimestral_ia,
     gerar_planejamento_mensal_ia,
     gerar_planos_aula_do_mes_ia,
     gerar_planejamento_pei_semestral_ia,
     gerar_planejamento_pei_mensal_ia,
     obter_meses_por_semestre,
+    obter_meses_por_bimestre,
     MESES_LETIVOS_SEMESTRE_1,
     MESES_LETIVOS_SEMESTRE_2,
+    MESES_LETIVOS_POR_BIMESTRE,
     TODOS_MESES_LETIVOS,
 )
 
@@ -301,6 +304,106 @@ def pode_acessar_atividade(id, usuario_id, perfil=None):
         return atividade[0] == usuario_id
     finally:
         release_cursor(conn, cursor)
+
+
+def _buscar_plano_usuario(plano_id, usuario_id, incluir_curso=False):
+    """Busca um plano de aula garantindo que pertença ao usuário autenticado."""
+    colunas_curso = ", cp.nome_curso, cp.carga_horaria" if incluir_curso else ""
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            f"""
+            SELECT pa.*{colunas_curso}
+            FROM planos_aula pa
+            LEFT JOIN cursos_plano cp ON cp.id = pa.curso_id
+            WHERE pa.id = %s AND COALESCE(pa.usuario_id, cp.usuario_id) = %s
+            """,
+            (plano_id, usuario_id),
+        )
+        return cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+
+def _buscar_curso_com_planos_usuario(curso_id, usuario_id):
+    """Busca um curso e seus planos apenas se o curso pertencer ao usuário autenticado."""
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            "SELECT * FROM cursos_plano WHERE id = %s AND usuario_id = %s",
+            (curso_id, usuario_id),
+        )
+        curso = cursor.fetchone()
+        if not curso:
+            return None, []
+
+        cursor.execute(
+            "SELECT * FROM planos_aula WHERE curso_id = %s ORDER BY dia",
+            (curso_id,),
+        )
+        planos = cursor.fetchall()
+        return curso, planos
+    finally:
+        release_cursor(conn, cursor)
+
+
+def _obter_identidade_institucional_sessao(instituicao_fallback=""):
+    """Obtém caminho da logo e nome da instituição do docente logado."""
+    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao")) if session else None
+    instituicao = (session.get("instituicao") or "").strip() if session else ""
+    if not instituicao and instituicao_fallback:
+        instituicao = str(instituicao_fallback).strip()
+    return logo_path, instituicao
+
+
+def _gerar_documentos_plano(
+    arquivo_docx,
+    arquivo_pdf,
+    titulo,
+    subtitulo,
+    conteudo,
+    gerar_pdf=True,
+    instituicao_fallback="",
+):
+    """Gera DOCX e opcionalmente PDF de planos/planejamentos com identidade institucional."""
+    os.makedirs(os.path.dirname(arquivo_docx) or "outputs", exist_ok=True)
+    logo_path, instituicao = _obter_identidade_institucional_sessao(instituicao_fallback)
+
+    gerar_docx_plano(
+        titulo=titulo,
+        subtitulo=subtitulo,
+        conteudo=conteudo,
+        caminho_saida=arquivo_docx,
+        logo_path=logo_path,
+        instituicao=instituicao,
+    )
+
+    if not gerar_pdf or not arquivo_pdf:
+        return True
+
+    resultado = gerar_pdf_plano(
+        arquivo_docx,
+        arquivo_pdf,
+        titulo=titulo,
+        subtitulo=subtitulo,
+        conteudo=conteudo,
+        logo_path=logo_path,
+        instituicao=instituicao,
+    )
+
+    if not resultado or not os.path.exists(arquivo_pdf):
+        from utils.pdf_generator import gerar_pdf_plano_reportlab
+        gerar_pdf_plano_reportlab(
+            docx_path=arquivo_docx,
+            pdf_path=arquivo_pdf,
+            titulo=titulo,
+            subtitulo=subtitulo,
+            conteudo=conteudo,
+            logo_path=logo_path,
+            instituicao=instituicao,
+        )
+
+    return os.path.exists(arquivo_pdf)
 
 
 # =========================
@@ -913,7 +1016,9 @@ def index():
                     dificuldade,
                     tipo,
                     faltantes,
-                    segmento=segmento_user
+                    segmento=segmento_user,
+                    disciplina=disciplina,
+                    curso=curso
                 )
                 # Salva as novas questões geradas pela IA no repositório
                 salvar_questoes_ia_no_repositorio(
@@ -940,7 +1045,9 @@ def index():
                 dificuldade,
                 tipo,
                 quantidade,
-                segmento=segmento_user
+                segmento=segmento_user,
+                disciplina=disciplina,
+                curso=curso
             )
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=atividade_gerada,
@@ -1753,7 +1860,7 @@ def regenerar(id):
     try:
         cursor.execute(
             """
-            SELECT conteudo, dificuldade
+            SELECT curso, disciplina, conteudo, dificuldade, atividade_gerada
             FROM atividades
             WHERE id=%s
             """,
@@ -1765,13 +1872,46 @@ def regenerar(id):
         release_cursor(conn, cursor)
 
     if not atividade:
-        return "Atividade nÃ£o encontrada"
+        return "Atividade não encontrada", 404
+
+    curso, disciplina, conteudo, dificuldade, texto_anterior = atividade
+    curso = curso or ""
+    disciplina = disciplina or ""
+    conteudo = conteudo or ""
+    dificuldade = dificuldade or "médio"
+
+    # Preserva segmento (incluindo PEI) e formato/quantidade originais
+    segmento = session.get("segmento", "")
+    if (
+        "pei" in curso.lower()
+        or "pei" in conteudo.lower()
+        or "individualizado" in curso.lower()
+        or "individualizado" in conteudo.lower()
+    ):
+        segmento = "pei"
+
+    tipo = "mista"
+    m_fmt = re.search(r"Formato:\s*([^\n\r]+)", conteudo, re.IGNORECASE)
+    if m_fmt:
+        fmt_txt = m_fmt.group(1).lower()
+        if "objetiva" in fmt_txt:
+            tipo = "objetiva"
+        elif "discursiva" in fmt_txt:
+            tipo = "discursiva"
+        elif "prática" in fmt_txt or "pratica" in fmt_txt:
+            tipo = "pratica"
+
+    qtd_encontrada = len(re.findall(r"(?im)^(?:Quest[aã]o\s*\d+|Exerc[ií]cio\s*\d+|\d+[\.\)])", texto_anterior or ""))
+    quantidade = max(1, min(qtd_encontrada, 50)) if qtd_encontrada > 0 else 5
 
     nova = gerar_atividade(
-        atividade[0],
-        atividade[1],
-        "objetiva",
-        5
+        conteudo,
+        dificuldade,
+        tipo,
+        quantidade,
+        segmento=segmento,
+        disciplina=disciplina,
+        curso=curso,
     )
 
     conn, cursor = get_cursor()
@@ -2046,16 +2186,17 @@ def planos():
 
         # Gera o DOCX consolidado do curso
         os.makedirs("outputs", exist_ok=True)
-        arquivo_docx = f"outputs/plano_{curso_id}.docx"
-        arquivo_pdf = f"outputs/plano_{curso_id}.pdf"
+        arquivo_docx = f"outputs/curso_{curso_id}.docx"
+        arquivo_pdf = f"outputs/curso_{curso_id}.pdf"
 
-        gerar_docx_plano(
+        _gerar_documentos_plano(
+            arquivo_docx=arquivo_docx,
+            arquivo_pdf=arquivo_pdf,
             titulo="PLANO DE AULA",
             subtitulo=f"Curso: {nome_curso}",
             conteudo=planos_completos,
-            caminho_saida=arquivo_docx
+            gerar_pdf=True,
         )
-        gerar_pdf_plano(arquivo_docx, arquivo_pdf)
 
         print(f"[OK] {len(planos)} Planos de aula gerados para o Curso #{curso_id}!")
         print("=" * 60)
@@ -2080,24 +2221,13 @@ def listar_planos():
 @app.route("/plano/<int:plano_id>")
 def visualizar_plano(plano_id):
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT pa.*, cp.nome_curso, cp.carga_horaria
-            FROM planos_aula pa
-            LEFT JOIN cursos_plano cp ON cp.id = pa.curso_id
-            WHERE pa.id = %s
-            """,
-            (plano_id,),
-        )
+    if "usuario_id" not in session:
+        return redirect("/login")
 
-        plano = cursor.fetchone()
-    finally:
-        release_cursor(conn, cursor)
+    plano = _buscar_plano_usuario(plano_id, session["usuario_id"], incluir_curso=True)
 
     if not plano:
-        return "Plano nÃ£o encontrado"
+        return "Plano não encontrado", 404
 
     return render_template(
         "visualizar_plano.html",
@@ -2187,32 +2317,9 @@ def visualizar_curso(curso_id):
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT *
-            FROM cursos_plano
-            WHERE id = %s
-            """,
-            (curso_id,),
-        )
-
-        curso = cursor.fetchone()
-
-        cursor.execute(
-            """
-            SELECT *
-            FROM planos_aula
-            WHERE curso_id = %s
-            ORDER BY dia
-            """,
-            (curso_id,),
-        )
-
-        planos = cursor.fetchall()
-    finally:
-        release_cursor(conn, cursor)
+    curso, planos = _buscar_curso_com_planos_usuario(curso_id, session["usuario_id"])
+    if not curso:
+        return "Curso não encontrado", 404
 
     return render_template(
         "planos_curso.html",
@@ -2231,61 +2338,21 @@ def plano_pdf(id):
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT *
-            FROM planos_aula
-            WHERE id=%s
-            """,
-            (id,)
-        )
-
-        plano = cursor.fetchone()
-    finally:
-        release_cursor(conn, cursor)
-
+    plano = _buscar_plano_usuario(id, session["usuario_id"])
     if not plano:
-        return "Plano nÃ£o encontrado"
+        return "Plano não encontrado", 404
 
     arquivo_docx = f"outputs/plano_{id}.docx"
     arquivo_pdf = f"outputs/plano_{id}.pdf"
-    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
-    instituicao = session.get("instituicao", "")
 
-    gerar_docx_plano(
+    if _gerar_documentos_plano(
+        arquivo_docx=arquivo_docx,
+        arquivo_pdf=arquivo_pdf,
         titulo="PLANO DE AULA",
         subtitulo=plano[3],
         conteudo=plano[4],
-        caminho_saida=arquivo_docx,
-        logo_path=logo_path,
-        instituicao=instituicao,
-    )
-
-    resultado = gerar_pdf_plano(
-        arquivo_docx,
-        arquivo_pdf,
-        titulo="PLANO DE AULA",
-        subtitulo=plano[3],
-        conteudo=plano[4],
-        logo_path=logo_path,
-        instituicao=instituicao,
-    )
-
-    if not resultado or not os.path.exists(arquivo_pdf):
-        from utils.pdf_generator import gerar_pdf_plano_reportlab
-        gerar_pdf_plano_reportlab(
-            docx_path=arquivo_docx,
-            pdf_path=arquivo_pdf,
-            titulo="PLANO DE AULA",
-            subtitulo=plano[3],
-            conteudo=plano[4],
-            logo_path=logo_path,
-            instituicao=instituicao,
-        )
-
-    if os.path.exists(arquivo_pdf):
+        gerar_pdf=True,
+    ):
         return send_file(
             arquivo_pdf,
             as_attachment=True,
@@ -2305,35 +2372,19 @@ def plano_word(id):
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT *
-            FROM planos_aula
-            WHERE id=%s
-            """,
-            (id,)
-        )
-
-        plano = cursor.fetchone()
-    finally:
-        release_cursor(conn, cursor)
-
+    plano = _buscar_plano_usuario(id, session["usuario_id"])
     if not plano:
-        return "Plano não encontrado"
+        return "Plano não encontrado", 404
 
     arquivo = f"outputs/plano_{id}.docx"
-    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
-    instituicao = session.get("instituicao", "")
 
-    gerar_docx_plano(
+    _gerar_documentos_plano(
+        arquivo_docx=arquivo,
+        arquivo_pdf=None,
         titulo="PLANO DE AULA",
         subtitulo=plano[3],
         conteudo=plano[4],
-        caminho_saida=arquivo,
-        logo_path=logo_path,
-        instituicao=instituicao,
+        gerar_pdf=False,
     )
 
     return send_file(
@@ -2347,68 +2398,34 @@ def plano_word(id):
 # =========================
 # CURSO COMPLETO PDF & WORD
 # =========================
+def _montar_conteudo_curso(planos):
+    return "\n\n".join(f"DIA {p[2]}\n{p[4]}" for p in planos)
+
+
 @app.route("/curso_pdf/<int:curso_id>")
 def curso_pdf(curso_id):
 
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute("SELECT * FROM cursos_plano WHERE id = %s", (curso_id,))
-        curso = cursor.fetchone()
-
-        cursor.execute("SELECT * FROM planos_aula WHERE curso_id = %s ORDER BY dia", (curso_id,))
-        planos = cursor.fetchall()
-    finally:
-        release_cursor(conn, cursor)
-
+    curso, planos = _buscar_curso_com_planos_usuario(curso_id, session["usuario_id"])
     if not curso:
         return "Curso não encontrado", 404
 
-    arquivo_docx = f"outputs/plano_{curso_id}.docx"
-    arquivo_pdf = f"outputs/plano_{curso_id}.pdf"
-    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
-    instituicao = session.get("instituicao", "")
+    arquivo_docx = f"outputs/curso_{curso_id}.docx"
+    arquivo_pdf = f"outputs/curso_{curso_id}.pdf"
 
     nome_curso = curso[1]
-    planos_completos = []
-    for p in planos:
-        planos_completos.append(f"DIA {p[2]}\n{p[4]}")
-    conteudo_total = "\n\n".join(planos_completos)
+    conteudo_total = _montar_conteudo_curso(planos)
 
-    gerar_docx_plano(
+    if _gerar_documentos_plano(
+        arquivo_docx=arquivo_docx,
+        arquivo_pdf=arquivo_pdf,
         titulo="PLANO DE AULA",
         subtitulo=f"Curso: {nome_curso}",
         conteudo=conteudo_total,
-        caminho_saida=arquivo_docx,
-        logo_path=logo_path,
-        instituicao=instituicao,
-    )
-
-    gerar_pdf_plano(
-        docx_path=arquivo_docx,
-        pdf_path=arquivo_pdf,
-        titulo="PLANO DE AULA",
-        subtitulo=f"Curso: {nome_curso}",
-        conteudo=conteudo_total,
-        logo_path=logo_path,
-        instituicao=instituicao,
-    )
-
-    if not os.path.exists(arquivo_pdf):
-        from utils.pdf_generator import gerar_pdf_plano_reportlab
-        gerar_pdf_plano_reportlab(
-            docx_path=arquivo_docx,
-            pdf_path=arquivo_pdf,
-            titulo="PLANO DE AULA",
-            subtitulo=f"Curso: {nome_curso}",
-            conteudo=conteudo_total,
-            logo_path=logo_path,
-            instituicao=instituicao,
-        )
-
-    if os.path.exists(arquivo_pdf):
+        gerar_pdf=True,
+    ):
         return send_file(
             arquivo_pdf,
             as_attachment=True,
@@ -2425,36 +2442,22 @@ def curso_word(curso_id):
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute("SELECT * FROM cursos_plano WHERE id = %s", (curso_id,))
-        curso = cursor.fetchone()
-
-        cursor.execute("SELECT * FROM planos_aula WHERE curso_id = %s ORDER BY dia", (curso_id,))
-        planos = cursor.fetchall()
-    finally:
-        release_cursor(conn, cursor)
-
+    curso, planos = _buscar_curso_com_planos_usuario(curso_id, session["usuario_id"])
     if not curso:
         return "Curso não encontrado", 404
 
-    arquivo_docx = f"outputs/plano_{curso_id}.docx"
-    logo_path = _obter_caminho_logo_usuario(session.get("logo_instituicao"))
-    instituicao = session.get("instituicao", "")
+    arquivo_docx = f"outputs/curso_{curso_id}.docx"
 
     nome_curso = curso[1]
-    planos_completos = []
-    for p in planos:
-        planos_completos.append(f"DIA {p[2]}\n{p[4]}")
-    conteudo_total = "\n\n".join(planos_completos)
+    conteudo_total = _montar_conteudo_curso(planos)
 
-    gerar_docx_plano(
+    _gerar_documentos_plano(
+        arquivo_docx=arquivo_docx,
+        arquivo_pdf=None,
         titulo="PLANO DE AULA",
         subtitulo=f"Curso: {nome_curso}",
         conteudo=conteudo_total,
-        caminho_saida=arquivo_docx,
-        logo_path=logo_path,
-        instituicao=instituicao,
+        gerar_pdf=False,
     )
 
     return send_file(
@@ -2493,20 +2496,7 @@ def gerar_atividade_plano(id):
     # =========================
     # BUSCAR PLANO
     # =========================
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT *
-            FROM planos_aula
-            WHERE id = %s
-            """,
-            (id,),
-        )
-
-        plano = cursor.fetchone()
-    finally:
-        release_cursor(conn, cursor)
+    plano = _buscar_plano_usuario(id, session["usuario_id"])
 
     if not plano:
         return "Plano não encontrado", 404
@@ -2597,7 +2587,7 @@ def gerar_atividade_plano(id):
         else:
             # Completa as faltantes via IA
             faltantes = quantidade - qtd_encontrada
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes, segmento=segmento_plano)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, faltantes, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2612,7 +2602,7 @@ def gerar_atividade_plano(id):
 
     elif fonte == "externo":
         # Geração externa via IA
-        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade, segmento=segmento_plano)
+        atividade = gerar_atividade(conteudo, dificuldade, tipo, quantidade, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
         salvar_questoes_ia_no_repositorio(
             texto_atividade=atividade,
             curso=curso_ident,
@@ -2641,7 +2631,7 @@ def gerar_atividade_plano(id):
         qtd_ia_necessaria = quantidade - qtd_repo
         texto_ia = ""
         if qtd_ia_necessaria > 0:
-            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria, segmento=segmento_plano)
+            texto_ia = gerar_atividade(conteudo, dificuldade, tipo, qtd_ia_necessaria, segmento=segmento_plano, disciplina=uc_ident, curso=curso_ident)
             salvar_questoes_ia_no_repositorio(
                 texto_atividade=texto_ia,
                 curso=curso_ident,
@@ -2770,38 +2760,26 @@ def baixar_plano(plano_id):
     if "usuario_id" not in session:
         return redirect("/login")
 
-    conn, cursor = get_cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT *
-            FROM planos_aula
-            WHERE id=%s
-            """,
-            (plano_id,)
-        )
-
-        plano = cursor.fetchone()
-    finally:
-        release_cursor(conn, cursor)
-
+    plano = _buscar_plano_usuario(plano_id, session["usuario_id"])
     if not plano:
-        return "Plano nÃ£o encontrado"
+        return "Plano não encontrado", 404
 
-    arquivo = f"temp/plano_{plano_id}.docx"
+    arquivo = f"outputs/plano_{plano_id}.docx"
 
-    os.makedirs("temp", exist_ok=True)
-
-    gerar_docx_plano(
+    _gerar_documentos_plano(
+        arquivo_docx=arquivo,
+        arquivo_pdf=None,
         titulo="PLANO DE AULA",
         subtitulo=f"Dia {plano[2]}",
         conteudo=plano[4],
-        caminho_saida=arquivo
+        gerar_pdf=False,
     )
 
     return send_file(
         arquivo,
-        as_attachment=True
+        as_attachment=True,
+        download_name=f"plano_{plano_id}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
 
@@ -2830,10 +2808,13 @@ def planejamento_docente():
 
         if tipo_cronograma == "aulas":
             aulas_bimestre = int(request.form.get("aulas_bimestre") or 40)
-            aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
-            if aulas_por_dia <= 0:
+            aulas_por_dia_raw = request.form.get("aulas_por_dia")
+            if aulas_por_dia_raw:
+                aulas_por_dia = max(1, int(aulas_por_dia_raw))
+                total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
+            else:
                 aulas_por_dia = 1
-            total_aulas = -(-aulas_bimestre // aulas_por_dia)  # Total de encontros
+                total_aulas = aulas_bimestre
             carga_horaria = int(round((aulas_bimestre * duracao_aula) / 60)) or aulas_bimestre
             horas_por_dia = max(1, int(round((aulas_por_dia * duracao_aula) / 60))) or 1
         else:
@@ -2995,12 +2976,17 @@ def planejamento_docente():
             return redirect(f"/planejamento/{planejamento_id}")
 
         elif eh_cascata_escolar:
-            print(f"[CASCATA] Gerando Planejamento Anual (Educação Básica) para {nome_curso} - {unidade_curricular}...")
+            ano_letivo = str(datetime.now().year)
+            if data_inicio_str and len(data_inicio_str) >= 4 and data_inicio_str[:4].isdigit():
+                ano_letivo = data_inicio_str[:4]
+            print(f"[CASCATA] Gerando Planejamento Anual (Educação Básica) para {nome_curso} - {unidade_curricular} (Ano Letivo: {ano_letivo})...")
             texto_anual, dados_anual = gerar_planejamento_anual_ia(
                 nome_curso=nome_curso,
                 componente=unidade_curricular,
                 segmento=modalidade,
-                ementa_digitada=conteudo_digitado
+                ementa_digitada=conteudo_digitado,
+                ano_letivo=ano_letivo,
+                docente_responsavel=session.get("nome", "").strip()
             )
 
             conn, cursor = get_cursor()
@@ -3018,6 +3004,7 @@ def planejamento_docente():
                 payload_json = json.dumps({
                     "texto_anual": texto_anual,
                     "dados": dados_anual,
+                    "bimestres": {},
                     "semestres": {},
                     "mensais": {}
                 }, ensure_ascii=False)
@@ -3490,16 +3477,17 @@ def gerar_planos_planejamento(planejamento_id):
 
     # 7. Gera DOCX e PDF consolidados do curso
     try:
-        os.makedirs("outputs", exist_ok=True)
-        arquivo_docx = f"outputs/plano_{curso_id}.docx"
-        arquivo_pdf = f"outputs/plano_{curso_id}.pdf"
-        gerar_docx_plano(
+        arquivo_docx = f"outputs/curso_{curso_id}.docx"
+        arquivo_pdf = f"outputs/curso_{curso_id}.pdf"
+        _gerar_documentos_plano(
+            arquivo_docx=arquivo_docx,
+            arquivo_pdf=arquivo_pdf,
             titulo="PLANO DE AULA",
             subtitulo=f"Curso: {nome_curso} — {uc}",
             conteudo=planos_completos,
-            caminho_saida=arquivo_docx
+            gerar_pdf=True,
+            instituicao_fallback=unidade_escolar or "",
         )
-        gerar_pdf_plano(arquivo_docx, arquivo_pdf)
     except Exception as e:
         print(f"[AVISO] Erro ao consolidar DOCX/PDF: {e}")
 
@@ -3550,24 +3538,41 @@ def visualizar_planejamento_cascata(planejamento_id):
             dados_dict = {}
 
     semestre_selecionado = int(request.args.get("semestre") or plan[17] or 1)
+    bimestre_selecionado = int(request.args.get("bimestre") or 1)
+    if bimestre_selecionado not in (1, 2, 3, 4):
+        bimestre_selecionado = 1
+    aba_ativa = request.args.get("aba", "")
+    if aba_ativa == "semestral":
+        aba_ativa = "bimestral"
 
     meses_semestre_1 = MESES_LETIVOS_SEMESTRE_1
     meses_semestre_2 = MESES_LETIVOS_SEMESTRE_2
+    bimestres_meses = MESES_LETIVOS_POR_BIMESTRE
     meses_letivos_todos = TODOS_MESES_LETIVOS
 
     mes_ativo = request.args.get("mes_nome")
     mes_numero_ativo = request.args.get("mes")
     if not mes_ativo:
-        mes_ativo = "Fevereiro" if semestre_selecionado == 1 else "Agosto"
-        mes_numero_ativo = 2 if semestre_selecionado == 1 else 8
+        if eh_pei:
+            mes_ativo = "Fevereiro" if semestre_selecionado == 1 else "Agosto"
+            mes_numero_ativo = 2 if semestre_selecionado == 1 else 8
+        else:
+            primeiro_mes_bim = obter_meses_por_bimestre(bimestre_selecionado)[0]
+            mes_ativo = primeiro_mes_bim["nome"]
+            mes_numero_ativo = primeiro_mes_bim["numero"]
     else:
         mes_numero_ativo = int(mes_numero_ativo or 2)
 
     texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or "Planejamento Curricular Anual estruturado conforme a BNCC."
     texto_pei_semestral = dados_dict.get("texto_pei_semestral") or dados_dict.get("texto") or texto_anual
 
-    semestres_salvos = dados_dict.get("semestres", {})
-    texto_semestral = semestres_salvos.get(str(semestre_selecionado), "")
+    bimestres_salvos = dados_dict.get("bimestres", {})
+    texto_bimestral = bimestres_salvos.get(str(bimestre_selecionado), "")
+    if not texto_bimestral:
+        # Fallback somente leitura caso exista conteúdo legado semestral
+        semestres_salvos = dados_dict.get("semestres", {})
+        sem_eq = "1" if bimestre_selecionado in (1, 2) else "2"
+        texto_bimestral = semestres_salvos.get(sem_eq, "")
 
     mensais_salvos = dados_dict.get("mensais", {})
     texto_mensal = mensais_salvos.get(mes_ativo, "")
@@ -3617,27 +3622,28 @@ def visualizar_planejamento_cascata(planejamento_id):
         estudante_necessidades=plan[21],
         recursos_tecnologicos_assistivos=plan[22],
         semestre_selecionado=semestre_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
         mes_ativo=mes_ativo,
         mes_numero_ativo=mes_numero_ativo,
         meses_semestre_1=meses_semestre_1,
         meses_semestre_2=meses_semestre_2,
+        bimestres_meses=bimestres_meses,
         meses_letivos_todos=meses_letivos_todos,
         texto_anual=texto_anual,
-        texto_semestral=texto_semestral,
+        texto_bimestral=texto_bimestral,
         texto_mensal=texto_mensal,
         texto_pei_semestral=texto_pei_semestral,
         texto_pei_mensal=texto_pei_mensal,
         planos_mes=planos_mes,
-        contagem_planos_por_mes=contagem_planos_por_mes
+        contagem_planos_por_mes=contagem_planos_por_mes,
+        aba_ativa=aba_ativa
     )
 
 
-@app.route("/planejamento/<int:planejamento_id>/gerar_semestral", methods=["POST"])
-def gerar_semestral_planejamento(planejamento_id):
-    if "usuario_id" not in session:
-        return redirect("/login")
-
-    semestre = int(request.form.get("semestre") or 1)
+def _executar_geracao_bimestral(planejamento_id, bimestre):
+    """Desdobra o Planejamento Anual no bimestre informado (1 a 4) e persiste no banco."""
+    if bimestre not in (1, 2, 3, 4):
+        bimestre = 1
 
     conn, cursor = get_cursor()
     try:
@@ -3650,7 +3656,7 @@ def gerar_semestral_planejamento(planejamento_id):
         release_cursor(conn, cursor)
 
     if not plan:
-        return "Planejamento não encontrado", 404
+        return None
 
     dados_dict = {}
     if plan[4]:
@@ -3660,16 +3666,14 @@ def gerar_semestral_planejamento(planejamento_id):
             dados_dict = {}
 
     texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or ""
-    texto_sem, dados_sem = gerar_planejamento_semestral_ia(
+    texto_bim, _ = gerar_planejamento_bimestral_ia(
         planejamento_anual_texto=texto_anual,
         componente=plan[2],
         nome_curso=plan[1],
-        semestre=semestre
+        bimestre=bimestre
     )
 
-    if "semestres" not in dados_dict:
-        dados_dict["semestres"] = {}
-    dados_dict["semestres"][str(semestre)] = texto_sem
+    dados_dict.setdefault("bimestres", {})[str(bimestre)] = texto_bim
 
     conn, cursor = get_cursor()
     try:
@@ -3681,7 +3685,191 @@ def gerar_semestral_planejamento(planejamento_id):
     finally:
         release_cursor(conn, cursor)
 
-    return redirect(f"/planejamento/{planejamento_id}?semestre={semestre}")
+    return redirect(f"/planejamento/{planejamento_id}?bimestre={bimestre}&aba=bimestral")
+
+
+@app.route("/planejamento/<int:planejamento_id>/gerar_semestral", methods=["POST"])
+def gerar_semestral_planejamento(planejamento_id):
+    """Rota legada mantida por compatibilidade, redirecionando para a estrutura bimestral."""
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    semestre = int(request.form.get("semestre") or 1)
+    bimestre = 1 if semestre == 1 else 3
+    resposta = _executar_geracao_bimestral(planejamento_id, bimestre)
+    return resposta if resposta is not None else ("Planejamento não encontrado", 404)
+
+
+@app.route("/planejamento/<int:planejamento_id>/gerar_bimestral", methods=["POST"])
+def gerar_bimestral_planejamento(planejamento_id):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    bimestre = int(request.form.get("bimestre") or 1)
+    resposta = _executar_geracao_bimestral(planejamento_id, bimestre)
+    return resposta if resposta is not None else ("Planejamento não encontrado", 404)
+
+
+def _montar_conteudo_cascata_para_exportacao(plan, dados_dict, escopo, bimestre=1, mes_nome=""):
+    """Monta título, subtítulo e conteúdo formatado para exportação DOCX/PDF de Cascata ou PEI."""
+    nome_curso = plan[1] or "Série/Turma"
+    componente = plan[2] or "Componente Curricular"
+    modalidade = plan[14] or ""
+    tipo_planejamento = plan[15] or "anual"
+    eh_pei = "PEI" in modalidade.upper() or "INDIVIDUALIZADO" in modalidade.upper() or tipo_planejamento == "pei_semestral"
+
+    cabecalho_pei = ""
+    if eh_pei:
+        aluno = plan[20] or "Não informado"
+        necessidades = plan[21] or "Educação Especial Inclusiva"
+        recursos = plan[22] or "DUA / CAA / TEACCH"
+        cabecalho_pei = (
+            f"PERFIL DO ESTUDANTE (PEI)\n"
+            f"- Estudante: {aluno}\n"
+            f"- Necessidades Específicas / Diagnóstico: {necessidades}\n"
+            f"- Tecnologias Assistivas: {recursos}\n\n"
+        )
+
+    bimestres_salvos = dados_dict.get("bimestres", {})
+    mensais_salvos = dados_dict.get("mensais", {})
+    texto_anual = dados_dict.get("texto_anual") or dados_dict.get("texto") or ""
+    texto_pei = dados_dict.get("texto_pei_semestral") or dados_dict.get("texto") or texto_anual
+
+    if escopo == "anual":
+        return (
+            "PLANEJAMENTO ANUAL",
+            f"{nome_curso} — {componente}",
+            texto_anual or "Planejamento Anual ainda não gerado.",
+        )
+
+    if escopo == "bimestral":
+        txt_bim = bimestres_salvos.get(str(bimestre), "")
+        return (
+            f"PLANEJAMENTO DO {bimestre}º BIMESTRE",
+            f"{nome_curso} — {componente}",
+            txt_bim or f"Planejamento do {bimestre}º Bimestre ainda não gerado.",
+        )
+
+    if escopo in ("mensal", "pei_mensal"):
+        txt_mes = mensais_salvos.get(mes_nome, "")
+        prefixo = "PEI — INTERVENÇÃO MENSAL" if eh_pei else "PLANEJAMENTO MENSAL"
+        return (
+            f"{prefixo} ({mes_nome.upper()})",
+            f"{nome_curso} — {componente}",
+            f"{cabecalho_pei}{txt_mes or f'Planejamento mensal de {mes_nome} ainda não gerado.'}",
+        )
+
+    if escopo == "pei_semestral":
+        return (
+            "PEI — PLANO EDUCACIONAL INDIVIDUALIZADO",
+            f"{nome_curso} — {componente}",
+            f"{cabecalho_pei}{texto_pei or 'PEI Semestral ainda não gerado.'}",
+        )
+
+    # Escopo completo
+    blocos = []
+    if eh_pei:
+        titulo_doc = "PEI — PLANO EDUCACIONAL INDIVIDUALIZADO"
+        if cabecalho_pei:
+            blocos.append(cabecalho_pei.strip())
+        if texto_pei:
+            blocos.append(f"PLANEJAMENTO PEI SEMESTRAL\n\n{texto_pei}")
+    else:
+        titulo_doc = "PLANEJAMENTO PEDAGÓGICO EM CASCATA"
+        if texto_anual:
+            blocos.append(f"PLANEJAMENTO ANUAL\n\n{texto_anual}")
+        for b in ("1", "2", "3", "4"):
+            if bimestres_salvos.get(b):
+                blocos.append(f"PLANEJAMENTO BIMESTRAL — {b}º BIMESTRE\n\n{bimestres_salvos[b]}")
+
+    for m in TODOS_MESES_LETIVOS:
+        if mensais_salvos.get(m["nome"]):
+            blocos.append(f"PLANEJAMENTO MENSAL — {m['nome'].upper()}\n\n{mensais_salvos[m['nome']]}")
+
+    conteudo_final = "\n\n".join(blocos) if blocos else "Nenhum conteúdo de planejamento disponível."
+    return titulo_doc, f"{nome_curso} — {componente}", conteudo_final
+
+
+@app.route("/planejamento/<int:planejamento_id>/exportar/<formato>")
+def exportar_planejamento_cascata(planejamento_id, formato):
+    if "usuario_id" not in session:
+        return redirect("/login")
+
+    formato = (formato or "").lower()
+    if formato not in ("word", "pdf"):
+        return "Formato inválido", 400
+
+    conn, cursor = get_cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT id, nome_curso, unidade_curricular, turma, unidade_escolar,
+                   carga_horaria, horas_por_dia, data_inicio, data_fim, total_aulas,
+                   arquivo_excel, usuario_id, data_criacao, curso_id, modalidade,
+                   tipo_planejamento, planejamento_pai_id, semestre, mes,
+                   dados_json, estudante_nome, estudante_necessidades, recursos_tecnologicos_assistivos
+            FROM planejamentos_docente
+            WHERE id = %s AND usuario_id = %s
+            """,
+            (planejamento_id, session["usuario_id"])
+        )
+        plan = cursor.fetchone()
+    finally:
+        release_cursor(conn, cursor)
+
+    if not plan:
+        return "Planejamento não encontrado", 404
+
+    dados_dict = {}
+    if plan[19]:
+        try:
+            dados_dict = json.loads(plan[19])
+        except Exception:
+            dados_dict = {}
+
+    escopo = request.args.get("escopo", "completo").strip().lower()
+    if escopo not in ("completo", "anual", "bimestral", "mensal", "pei_semestral", "pei_mensal"):
+        escopo = "completo"
+    bimestre = int(request.args.get("bimestre") or 1)
+    if bimestre not in (1, 2, 3, 4):
+        bimestre = 1
+    mes_nome = request.args.get("mes_nome", "").strip()
+
+    titulo_doc, subtitulo_doc, conteudo_doc = _montar_conteudo_cascata_para_exportacao(
+        plan, dados_dict, escopo, bimestre=bimestre, mes_nome=mes_nome
+    )
+
+    sufixo = f"{escopo}_b{bimestre}" if escopo == "bimestral" else (f"{escopo}_{mes_nome.lower()}" if mes_nome and escopo in ("mensal", "pei_mensal") else escopo)
+    sufixo_seguro = re.sub(r"[^a-z0-9_-]", "_", sufixo)
+    arquivo_docx = f"outputs/planejamento_{planejamento_id}_{sufixo_seguro}.docx"
+    arquivo_pdf = f"outputs/planejamento_{planejamento_id}_{sufixo_seguro}.pdf"
+
+    ok = _gerar_documentos_plano(
+        arquivo_docx=arquivo_docx,
+        arquivo_pdf=arquivo_pdf if formato == "pdf" else None,
+        titulo=titulo_doc,
+        subtitulo=subtitulo_doc,
+        conteudo=conteudo_doc,
+        gerar_pdf=(formato == "pdf"),
+        instituicao_fallback=plan[4] or "",
+    )
+
+    if formato == "pdf":
+        if ok and os.path.exists(arquivo_pdf):
+            return send_file(
+                arquivo_pdf,
+                as_attachment=True,
+                download_name=f"planejamento_{planejamento_id}_{sufixo_seguro}.pdf",
+                mimetype="application/pdf",
+            )
+        return "Erro ao gerar PDF do planejamento.", 500
+
+    return send_file(
+        arquivo_docx,
+        as_attachment=True,
+        download_name=f"planejamento_{planejamento_id}_{sufixo_seguro}.docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
 
 
 @app.route("/planejamento/<int:planejamento_id>/gerar_planos_mes", methods=["POST"])
@@ -3692,6 +3880,7 @@ def gerar_planos_mes_planejamento(planejamento_id):
     mes_nome = request.form.get("mes_nome", "Fevereiro")
     mes_numero = int(request.form.get("mes_numero") or 2)
     semestre = int(request.form.get("semestre") or 1)
+    bimestre = int(request.form.get("bimestre") or 1)
     dias_semana = request.form.get("dias_semana", "Segunda, Quarta")
     aulas_por_dia = int(request.form.get("aulas_por_dia") or 2)
     duracao_aula = int(request.form.get("duracao_aula") or 50)
@@ -3759,8 +3948,13 @@ def gerar_planos_mes_planejamento(planejamento_id):
                 numero_mes=mes_numero
             )
         else:
+            ref_bimestral = (
+                dados_dict.get("bimestres", {}).get(str(bimestre))
+                or dados_dict.get("semestres", {}).get(str(semestre))
+                or dados_dict.get("texto_anual", "")
+            )
             txt_mensal, _ = gerar_planejamento_mensal_ia(
-                planejamento_semestral_texto=dados_dict.get("semestres", {}).get(str(semestre), dados_dict.get("texto_anual", "")),
+                planejamento_semestral_texto=ref_bimestral,
                 componente=plan[2],
                 nome_curso=plan[1],
                 mes_nome=mes_nome,
@@ -3823,7 +4017,8 @@ def gerar_planos_mes_planejamento(planejamento_id):
     finally:
         release_cursor(conn, cursor)
 
-    return redirect(f"/planejamento/{planejamento_id}?mes={mes_numero}&mes_nome={mes_nome}&semestre={semestre}")
+    aba_destino = "pei-aulas" if eh_pei else "mensal"
+    return redirect(f"/planejamento/{planejamento_id}?mes={mes_numero}&mes_nome={mes_nome}&semestre={semestre}&bimestre={bimestre}&aba={aba_destino}")
 
 
 # =========================
