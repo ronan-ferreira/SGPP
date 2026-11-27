@@ -102,6 +102,13 @@
                 <a href="/baixar_planejamento/{{ planejamento[0] }}" class="btn btn-outline-success shadow-sm">
                     <i class="bi bi-file-earmark-arrow-down me-1"></i> Baixar Documento Oficial
                 </a>
+            {% else %}
+                <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=completo" class="btn btn-outline-danger shadow-sm">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                </a>
+                <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=completo" class="btn btn-outline-primary shadow-sm">
+                    <i class="bi bi-file-earmark-word me-1"></i> Exportar Word
+                </a>
             {% endif %}
             <a href="/atividades" class="btn btn-primary shadow-sm">
                 <i class="bi bi-magic me-1"></i> Gerador de Atividades
@@ -196,8 +203,14 @@
                             <i class="bi bi-mortarboard me-1"></i> {{ planejamento[1] }} &middot; {{ planejamento[2] }} &middot; Visão macro e competências da BNCC
                         </div>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="copiarTexto('textoAnual')">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=anual" class="btn btn-outline-danger btn-sm shadow-sm">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                        </a>
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=anual" class="btn btn-outline-primary btn-sm shadow-sm">
+                            <i class="bi bi-file-earmark-word me-1"></i> Word
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="copiarTexto('textoAnual')">
                             <i class="bi bi-clipboard me-1"></i> Copiar Texto
                         </button>
                     </div>
@@ -247,7 +260,13 @@
                     <!-- Seletor de Bimestre (4 Bimestres) -->
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         {% if texto_bimestral %}
-                        <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="copiarTexto('textoBimestral')">
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=bimestral&bimestre={{ bimestre_selecionado }}" class="btn btn-outline-danger btn-sm shadow-sm">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                        </a>
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=bimestral&bimestre={{ bimestre_selecionado }}" class="btn btn-outline-primary btn-sm shadow-sm">
+                            <i class="bi bi-file-earmark-word me-1"></i> Word
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm shadow-sm" onclick="copiarTexto('textoBimestral')">
                             <i class="bi bi-clipboard me-1"></i> Copiar Texto
                         </button>
                         {% endif %}
@@ -354,7 +373,17 @@
                         <!-- Card de Diretrizes do Mês -->
                         {% if texto_mensal %}
                             <div class="mb-4">
-                                <h6 class="fw-bold text-muted text-uppercase mb-2">Metas e Diretrizes do Mês de {{ mes_ativo }}:</h6>
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                    <h6 class="fw-bold text-muted text-uppercase mb-0">Metas e Diretrizes do Mês de {{ mes_ativo }}:</h6>
+                                    <div class="d-flex gap-2">
+                                        <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=mensal&mes_nome={{ mes_ativo }}" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-file-earmark-pdf me-1"></i> PDF do Mês
+                                        </a>
+                                        <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=mensal&mes_nome={{ mes_ativo }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-file-earmark-word me-1"></i> Word do Mês
+                                        </a>
+                                    </div>
+                                </div>
                                 {{ renderizar_texto(texto_mensal) }}                            </div>
                         {% endif %}
 
@@ -436,9 +465,17 @@
                         <span class="text-muted small">Mapeamento de potencialidades, barreiras, metas com DUA (Desenho Universal para a Aprendizagem) e tecnologias assistivas.</span>
                     </div>
 
-                    <button class="btn btn-outline-danger btn-sm" onclick="copiarTexto('textoPeiSemestral')">
-                        <i class="bi bi-clipboard me-1"></i> Copiar PEI
-                    </button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=pei_semestral" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                        </a>
+                        <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=pei_semestral" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-earmark-word me-1"></i> Exportar Word
+                        </a>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="copiarTexto('textoPeiSemestral')">
+                            <i class="bi bi-clipboard me-1"></i> Copiar PEI
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Card de Perfil do Aluno -->
@@ -506,9 +543,19 @@
                                 <span class="text-muted small">Metas de curto prazo e adaptações curriculares pontuais para {{ estudante_nome }}.</span>
                             </div>
 
-                            <button type="button" class="btn btn-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalGerarPlanosMes">
-                                <i class="bi bi-plus-circle me-1"></i> Gerar Aulas Inclusivas de {{ mes_ativo }}
-                            </button>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% if texto_pei_mensal %}
+                                    <a href="/planejamento/{{ planejamento[0] }}/exportar/pdf?escopo=pei_mensal&mes_nome={{ mes_ativo }}" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+                                    </a>
+                                    <a href="/planejamento/{{ planejamento[0] }}/exportar/word?escopo=pei_mensal&mes_nome={{ mes_ativo }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-file-earmark-word me-1"></i> Word
+                                    </a>
+                                {% endif %}
+                                <button type="button" class="btn btn-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalGerarPlanosMes">
+                                    <i class="bi bi-plus-circle me-1"></i> Gerar Aulas Inclusivas de {{ mes_ativo }}
+                                </button>
+                            </div>
                         </div>
 
                         {{ renderizar_texto(texto_pei_mensal) }}
@@ -567,6 +614,12 @@
                                         <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
                                             <a href="/plano/{{ plano[0] }}" class="btn btn-outline-primary btn-sm">
                                                 <i class="bi bi-eye me-1"></i> Ver Página Completa
+                                            </a>
+                                            <a href="/plano_pdf/{{ plano[0] }}" class="btn btn-outline-danger btn-sm">
+                                                <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                                            </a>
+                                            <a href="/plano_word/{{ plano[0] }}" class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-file-earmark-word me-1"></i> Exportar Word
                                             </a>
                                             <a href="/gerar_atividade_plano/{{ plano[0] }}" class="btn btn-danger btn-sm ms-auto">
                                                 <i class="bi bi-magic me-1"></i> Gerar Atividade Adaptada para {{ estudante_nome }}

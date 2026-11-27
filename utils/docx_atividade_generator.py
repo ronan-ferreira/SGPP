@@ -219,7 +219,8 @@ def gerar_docx_atividade(
     footer = section.footer
     p_footer = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
     p_footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_footer = p_footer.add_run("SENAI — Serviço Nacional de Aprendizagem Industrial")
+    texto_rodape = instituicao_val or "SGPP — Sistema de Gestão e Planejamento Pedagógico"
+    run_footer = p_footer.add_run(texto_rodape)
     run_footer.font.size = Pt(8)
     run_footer.font.color.rgb = RGBColor(100, 116, 139)  # #64748B
 

@@ -19,13 +19,13 @@ MODELO_LEGADO       = os.path.join(PASTA_TEMPLATES, "modelo_planejamento_docente
 
 from utils.imagem_utils import processar_logo_canvas_excel
 
-# Caminhos da logo oficial SENAI 2024
-LOGO_DOWNLOADS = r"C:\Users\ronanjose\Downloads\SENAI_logo_2024 (1).png"
-LOGO_PROJETO   = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
+# Caminhos relativos da logo padrão do projeto (portável entre Windows e Linux)
+LOGO_PROJETO = os.path.join(BASE_DIR, "static", "img", "SENAI_logo_2024.png")
+LOGO_FALLBACK_SGPP = os.path.join(BASE_DIR, "static", "img", "logo_icone_oficial.png")
 
 
 def obter_bytes_logo_oficial(logo_custom_path=None):
-    """Retorna os bytes da logo institucional perfeitamente ajustada na proporção ou SENAI como fallback."""
+    """Retorna os bytes da logo institucional perfeitamente ajustada na proporção ou fallback do projeto."""
     if logo_custom_path and os.path.exists(logo_custom_path):
         try:
             bytes_proc = processar_logo_canvas_excel(logo_custom_path, largura_canvas=400, altura_canvas=120)
@@ -36,7 +36,7 @@ def obter_bytes_logo_oficial(logo_custom_path=None):
         except Exception as e:
             print(f"[AVISO] Falha ao processar canvas da logo customizada: {e}")
 
-    for caminho in [LOGO_DOWNLOADS, LOGO_PROJETO]:
+    for caminho in [LOGO_PROJETO, LOGO_FALLBACK_SGPP]:
         if caminho and os.path.exists(caminho):
             try:
                 with open(caminho, "rb") as f:

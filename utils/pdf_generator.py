@@ -26,10 +26,11 @@ from utils.imagem_utils import obter_dimensoes_proporcionais
 
 
 class PlanoNumberedCanvas(canvas.Canvas):
-    """Canvas com numeração de páginas e rodapé institucional para planos de aula."""
-    def __init__(self, *args, **kwargs):
+    """Canvas com numeração de páginas e rodapé institucional para planos e planejamentos."""
+    def __init__(self, *args, texto_rodape="SGPP — Sistema de Gestão e Planejamento Pedagógico • Plano de Aula", **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
+        self.texto_rodape = texto_rodape
 
     def showPage(self):
         self._saved_page_states.append(dict(self.__dict__))
@@ -50,7 +51,8 @@ class PlanoNumberedCanvas(canvas.Canvas):
         self.setStrokeColor(colors.HexColor("#CBD5E1"))
         self.setLineWidth(0.6)
         self.line(36, 36, 559, 36)
-        self.drawString(36, 24, "SENAI — Serviço Nacional de Aprendizagem Industrial • Plano de Aula")
+        rodape = self.texto_rodape or "SGPP — Sistema de Gestão e Planejamento Pedagógico"
+        self.drawString(36, 24, rodape[:75])
         self.drawRightString(559, 24, f"Página {self._pageNumber} de {page_count}")
         self.restoreState()
 
@@ -79,7 +81,7 @@ def _formatar_texto_markdown(texto):
     return txt
 
 
-def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, conteudo=None):
+def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, conteudo=None, logo_path=None, instituicao=None):
     """Converte ou gera o PDF do plano de aula utilizando ReportLab."""
     pasta = os.path.dirname(pdf_path)
     if pasta:
@@ -179,16 +181,24 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
 
     story = []
 
-    # Cabeçalho com Logo
-    logo_path = _localizar_logo()
+    # Cabeçalho com Logo e Instituição
+    logo_efetivo = logo_path if (logo_path and os.path.exists(logo_path)) else _localizar_logo()
+    instituicao_limpa = (instituicao or "").strip()
     titulo_texto = html.escape(str(titulo or "PLANO DE AULA"))
-    if logo_path:
-        larg_logo, alt_logo = obter_dimensoes_proporcionais(logo_path, max_w=115, max_h=38)
-        img_logo = Image(logo_path, width=larg_logo, height=alt_logo)
+    bloco_titulo_html = f"<b>{titulo_texto}</b>"
+    if instituicao_limpa:
+        bloco_titulo_html = (
+            f"<font size='9' color='#475569'><b>{html.escape(instituicao_limpa.upper())}</b></font><br/>"
+            f"<b>{titulo_texto}</b>"
+        )
+
+    if logo_efetivo:
+        larg_logo, alt_logo = obter_dimensoes_proporcionais(logo_efetivo, max_w=115, max_h=38)
+        img_logo = Image(logo_efetivo, width=larg_logo, height=alt_logo)
         img_logo.hAlign = "CENTER"
         col_logo_w = max(120, larg_logo + 5)
         col_texto_w = 523 - col_logo_w
-        t_header = Table([[img_logo, Paragraph(f"<b>{titulo_texto}</b>", style_titulo)]], colWidths=[col_logo_w, col_texto_w])
+        t_header = Table([[img_logo, Paragraph(bloco_titulo_html, style_titulo)]], colWidths=[col_logo_w, col_texto_w])
         t_header.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (1, 0), (1, 0), "CENTER"),
@@ -199,7 +209,7 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
         ]))
         story.append(t_header)
     else:
-        story.append(Paragraph(f"<b>{titulo_texto}</b>", style_titulo))
+        story.append(Paragraph(bloco_titulo_html, style_titulo))
 
     story.append(Spacer(1, 4))
     if curso_subtitulo:
@@ -214,8 +224,8 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
 
         l_fmt = _formatar_texto_markdown(l_strip)
 
-        if re.match(r"^DIA\s+\d+", l_strip, re.IGNORECASE):
-            # Banner do Dia
+        if re.match(r"^(DIA|ENCONTRO)\s+\d+", l_strip, re.IGNORECASE) or re.match(r"^PLANEJAMENTO\s+(ANUAL|BIMESTRAL|MENSAL|PEI)\b", l_strip, re.IGNORECASE):
+            # Banner de seção principal / Dia
             t_dia = Table([[Paragraph(html.escape(l_strip.upper()), style_dia)]], colWidths=[523])
             t_dia.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#004696")),
@@ -227,7 +237,8 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
             story.append(Spacer(1, 6))
             story.append(t_dia)
             story.append(Spacer(1, 4))
-        elif re.match(r"^\d+[\.\:\-–]\s*(Identificação|Objetivos|Conteúdo|Conteudo|Estratégia|Estrategia|Recursos|Avaliação|Avaliacao|Metodologia)", l_strip, re.IGNORECASE):
+        elif re.match(r"^\d+[\.\:\-–]\s*(Identificação|Objetivos|Conteúdo|Conteudo|Estratégia|Estrategia|Recursos|Avaliação|Avaliacao|Metodologia|[A-ZÁÉÍÓÚÂÊÔÃÕÇ]{2,})", l_strip, re.IGNORECASE) or \
+             re.match(r"^(Identificação|Competências|Eixos|Metodologia|Diretrizes|Objetivos|Habilidades|Distribuição|Estratégias|Instrumentos|Critérios|Perfil|Metas|Desenho Universal|Tecnologias|Adaptações|Cronograma)", l_strip, re.IGNORECASE):
             story.append(Paragraph(l_fmt, style_secao))
         elif l_strip.startswith("-") or l_strip.startswith("•") or l_strip.startswith("*"):
             item_limpo = l_strip.lstrip("-•* ").strip()
@@ -235,13 +246,16 @@ def gerar_pdf_plano_reportlab(docx_path, pdf_path, titulo=None, subtitulo=None, 
         else:
             story.append(Paragraph(l_fmt, style_texto))
 
-    pdf_doc.build(story, canvasmaker=PlanoNumberedCanvas)
+    titulo_rodape = str(titulo or "Plano de Aula").strip()
+    base_rodape = instituicao_limpa or "SGPP — Sistema de Gestão e Planejamento Pedagógico"
+    texto_rodape = f"{base_rodape} • {titulo_rodape}"
+    pdf_doc.build(story, canvasmaker=lambda *a, **kw: PlanoNumberedCanvas(*a, texto_rodape=texto_rodape, **kw))
     return True
 
 
-def gerar_pdf_plano(docx_path, pdf_path, titulo=None, subtitulo=None, conteudo=None):
+def gerar_pdf_plano(docx_path, pdf_path, titulo=None, subtitulo=None, conteudo=None, logo_path=None, instituicao=None):
     """
-    Gera o PDF do plano de aula nativamente via ReportLab com layout SENAI.
+    Gera o PDF do plano de aula nativamente via ReportLab com identidade institucional dinâmica.
     Se não for possível, tenta converter via docx2pdf.
     """
     pasta = os.path.dirname(pdf_path)
@@ -255,7 +269,9 @@ def gerar_pdf_plano(docx_path, pdf_path, titulo=None, subtitulo=None, conteudo=N
             pdf_path=pdf_path,
             titulo=titulo,
             subtitulo=subtitulo,
-            conteudo=conteudo
+            conteudo=conteudo,
+            logo_path=logo_path,
+            instituicao=instituicao,
         )
         if sucesso and os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
             print(f"[OK] PDF do plano gerado via ReportLab: {pdf_path}")
